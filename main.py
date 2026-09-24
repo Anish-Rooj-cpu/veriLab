@@ -696,7 +696,8 @@ class MainWindow(QMainWindow):
         
         env = os.environ.copy()
         oss_bin = r"C:\oss-cad-suite\bin"
-        env["PATH"] = f"{oss_bin};" + env.get("PATH", "")
+        oss_lib = r"C:\oss-cad-suite\lib"
+        env["PATH"] = f"{oss_bin};{oss_lib};" + env.get("PATH", "")
         subprocess.Popen(f'gtkwave "{target}"', cwd=sim_dir, shell=True, env=env)
 
     def run_background_task(self, cmd, cwd, on_success=None):
