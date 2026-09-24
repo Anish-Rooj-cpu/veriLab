@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
         self.console_dock = QDockWidget("", self)
         self.console_dock.setObjectName("BottomPanelDock")
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
-        self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        self.console_dock.setTitleBarWidget(QWidget())
         
         self.bottom_tabs = QTabWidget()
         self.bottom_tabs.setDocumentMode(True)

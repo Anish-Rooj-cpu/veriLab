@@ -94,13 +94,17 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 text = block.text()
-                indent = len(text) - len(text.lstrip(' '))
-                if not text.strip():
+                stripped = text.lstrip(' \t')
+                indent = len(text) - len(stripped)
+                if not stripped:
                     prev_b = block.previous()
-                    while prev_b.isValid() and not prev_b.text().strip():
+                    lookback = 0
+                    while prev_b.isValid() and not prev_b.text().lstrip(' \t') and lookback < 30:
                         prev_b = prev_b.previous()
+                        lookback += 1
                     if prev_b.isValid():
-                        indent = len(prev_b.text()) - len(prev_b.text().lstrip(' '))
+                        prev_text = prev_b.text()
+                        indent = len(prev_text) - len(prev_text.lstrip(' \t'))
                         
                 for i in range(1, indent // 4 + 1):
                     x = self.document().documentMargin() + (i * 4 * space_width) + self.contentOffset().x()
@@ -158,18 +162,21 @@ class CodeEditor(QPlainTextEdit):
 
     def get_indent(self, block):
         text = block.text()
-        if not text.strip(): return -1
-        return len(text) - len(text.lstrip())
+        stripped = text.lstrip(' \t')
+        if not stripped: return -1
+        return len(text) - len(stripped)
 
     def is_fold_start(self, block):
         indent = self.get_indent(block)
         if indent == -1: return False
         
         next_b = block.next()
-        while next_b.isValid() and self.get_indent(next_b) == -1:
+        lookahead = 0
+        while next_b.isValid() and self.get_indent(next_b) == -1 and lookahead < 30:
             next_b = next_b.next()
+            lookahead += 1
             
-        if next_b.isValid():
+        if next_b.isValid() and self.get_indent(next_b) != -1:
             next_indent = self.get_indent(next_b)
             return next_indent > indent
         return False
