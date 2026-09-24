@@ -140,7 +140,7 @@ class MainWindow(QMainWindow):
         self.current_files = {} 
         
         self.init_ui()
-        self.restore_workspace()
+
 
     def eventFilter(self, source, event):
         if source == self.tabs.tabBar() and event.type() == event.MouseButtonRelease:
@@ -889,42 +889,7 @@ class MainWindow(QMainWindow):
         self.worker.finished_signal.connect(finished)
         self.worker.start()
 
-    def closeEvent(self, event):
-        import project_manager
-        tabs_paths = []
-        for i in range(self.tabs.count()):
-            tabs_paths.append(self.current_files[i]['path'])
-        
-        project_manager.save_workspace(
-            self.project_dir, 
-            tabs_paths, 
-            self.tabs.currentIndex(),
-            self.saveGeometry().data().hex(),
-            self.saveState().data().hex()
-        )
-        event.accept()
 
-    def restore_workspace(self):
-        import project_manager
-        from PyQt5.QtCore import QByteArray
-        workspace = project_manager.load_workspace(self.project_dir)
-        if workspace:
-            open_tabs = workspace.get("open_tabs", [])
-            active_index = workspace.get("active_index", 0)
-            geom = workspace.get("window_geometry")
-            state = workspace.get("window_state")
-            
-            for path in open_tabs:
-                if path and os.path.exists(path):
-                    self.load_file(path)
-            
-            if 0 <= active_index < self.tabs.count():
-                self.tabs.setCurrentIndex(active_index)
-                
-            if geom:
-                self.restoreGeometry(QByteArray.fromHex(geom.encode('utf-8')))
-            if state:
-                self.restoreState(QByteArray.fromHex(state.encode('utf-8')))
 
 from PyQt5.QtGui import QPalette
 
