@@ -33,6 +33,10 @@ class WorkerThread(QThread):
             oss_lib = r"C:\oss-cad-suite\lib"
             graphviz_bin = r"C:\Program Files\Graphviz\bin"
             env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};" + env.get("PATH", "")
+            if "TCL_LIBRARY" in env:
+                del env["TCL_LIBRARY"]
+            if "TK_LIBRARY" in env:
+                del env["TK_LIBRARY"]
 
             process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                        text=True, cwd=self.cwd, shell=True, env=env)
