@@ -1,6 +1,11 @@
 from PyQt5.QtWidgets import QPlainTextEdit, QWidget, QTextEdit, QCompleter
 from PyQt5.QtCore import Qt, QRect, QSize, pyqtSignal
-from PyQt5.QtGui import QColor, QPainter, QTextFormat, QFont, QTextCursor, QTextCharFormat
+from PyQt5.QtGui import QColor, QPainter, QTextFormat, QFont, QTextCursor, QTextCharFormat, QTextBlockUserData
+
+class BlockData(QTextBlockUserData):
+    def __init__(self):
+        super().__init__()
+        self.folded = False
 
 class LineNumberArea(QWidget):
     def __init__(self, editor):
@@ -12,6 +17,9 @@ class LineNumberArea(QWidget):
 
     def paintEvent(self, event):
         self.codeEditor.lineNumberAreaPaintEvent(event)
+
+    def mousePressEvent(self, event):
+        self.codeEditor.lineNumberAreaMousePressEvent(event)
 
 class CodeEditor(QPlainTextEdit):
     def __init__(self):
@@ -47,8 +55,8 @@ class CodeEditor(QPlainTextEdit):
             max_num /= 10
             digits += 1
         
-        # calculate width based on digits
-        space = 3 + self.fontMetrics().horizontalAdvance('9') * digits
+        # calculate width based on digits plus space for fold icon
+        space = 3 + self.fontMetrics().horizontalAdvance('9') * digits + 15
         return space
 
     def updateLineNumberAreaWidth(self, _):
@@ -71,6 +79,36 @@ class CodeEditor(QPlainTextEdit):
     def setErrors(self, error_lines):
         self._errors = set(error_lines)
         self.highlightCurrentLine()
+        
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self.viewport())
+        painter.setPen(QColor("#3E4451"))
+        
+        block = self.firstVisibleBlock()
+        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+        bottom = top + self.blockBoundingRect(block).height()
+        
+        space_width = self.fontMetrics().horizontalAdvance(' ')
+        
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                text = block.text()
+                indent = len(text) - len(text.lstrip(' '))
+                if not text.strip():
+                    prev_b = block.previous()
+                    while prev_b.isValid() and not prev_b.text().strip():
+                        prev_b = prev_b.previous()
+                    if prev_b.isValid():
+                        indent = len(prev_b.text()) - len(prev_b.text().lstrip(' '))
+                        
+                for i in range(1, indent // 4 + 1):
+                    x = self.document().documentMargin() + (i * 4 * space_width) + self.contentOffset().x()
+                    painter.drawLine(int(x), int(top), int(x), int(bottom))
+            
+            block = block.next()
+            top = bottom
+            bottom = top + self.blockBoundingRect(block).height()
 
     def highlightCurrentLine(self):
         extraSelections = []
@@ -118,6 +156,24 @@ class CodeEditor(QPlainTextEdit):
 
         self.setExtraSelections(extraSelections)
 
+    def get_indent(self, block):
+        text = block.text()
+        if not text.strip(): return -1
+        return len(text) - len(text.lstrip())
+
+    def is_fold_start(self, block):
+        indent = self.get_indent(block)
+        if indent == -1: return False
+        
+        next_b = block.next()
+        while next_b.isValid() and self.get_indent(next_b) == -1:
+            next_b = next_b.next()
+            
+        if next_b.isValid():
+            next_indent = self.get_indent(next_b)
+            return next_indent > indent
+        return False
+
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
         painter.fillRect(event.rect(), QColor("#282C34"))
@@ -126,18 +182,71 @@ class CodeEditor(QPlainTextEdit):
         blockNumber = block.blockNumber()
         top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
         bottom = top + self.blockBoundingRect(block).height()
+        
+        fold_x = self.lineNumberArea.width() - 12
 
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
                 painter.setPen(QColor("#4B5263"))
-                painter.drawText(0, int(top), self.lineNumberArea.width() - 2, self.fontMetrics().height(),
+                painter.drawText(0, int(top), self.lineNumberArea.width() - 16, self.fontMetrics().height(),
                                  Qt.AlignRight, number)
+                                 
+                if self.is_fold_start(block):
+                    data = block.userData()
+                    if not isinstance(data, BlockData):
+                        data = BlockData()
+                        block.setUserData(data)
+                        
+                    # draw +/- box
+                    painter.setPen(QColor("#ABB2BF"))
+                    painter.drawRect(fold_x, int(top) + 4, 8, 8)
+                    painter.drawLine(fold_x + 2, int(top) + 8, fold_x + 6, int(top) + 8)
+                    if data.folded:
+                        painter.drawLine(fold_x + 4, int(top) + 6, fold_x + 4, int(top) + 10)
 
             block = block.next()
             top = bottom
             bottom = top + self.blockBoundingRect(block).height()
             blockNumber += 1
+
+    def lineNumberAreaMousePressEvent(self, event):
+        fold_x = self.lineNumberArea.width() - 14
+        if event.pos().x() >= fold_x:
+            block = self.firstVisibleBlock()
+            top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
+            bottom = top + self.blockBoundingRect(block).height()
+            
+            while block.isValid() and top <= self.viewport().rect().bottom():
+                if block.isVisible() and top <= event.pos().y() <= bottom:
+                    if self.is_fold_start(block):
+                        data = block.userData()
+                        if not isinstance(data, BlockData):
+                            data = BlockData()
+                            block.setUserData(data)
+                        
+                        data.folded = not data.folded
+                        self.toggle_fold(block, data.folded)
+                        self.viewport().update()
+                        self.lineNumberArea.update()
+                        self.updateRequest.emit(self.viewport().rect(), 0) # Force recalculation of block layout
+                    break
+                block = block.next()
+                top = bottom
+                bottom = top + self.blockBoundingRect(block).height()
+                
+    def toggle_fold(self, start_block, folded):
+        base_indent = self.get_indent(start_block)
+        block = start_block.next()
+        
+        while block.isValid():
+            indent = self.get_indent(block)
+            if indent != -1 and indent <= base_indent:
+                break # We reached the end of the folded section
+            block.setVisible(not folded)
+            block = block.next()
+            
+        self.document().markContentsDirty(start_block.position(), block.position() - start_block.position() if block.isValid() else self.document().characterCount())
 
     def setCompleter(self, completer):
         if self._completer:

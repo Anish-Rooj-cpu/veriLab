@@ -16,6 +16,7 @@ from PyQt5.QtSvg import QSvgRenderer
 from code_editor import CodeEditor
 from highlighter import VerilogHighlighter
 import formatter
+import icons
 
 APP_VERSION = "1.0.0"
 
@@ -149,6 +150,16 @@ class MainWindow(QMainWindow):
         
         self.setWindowTitle(f"Verilog Studio - {self.project_name}")
         self.resize(1200, 800)
+        
+        # Make the native title bar dark on Windows 10/11
+        try:
+            import ctypes
+            # DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                int(self.winId()), 20, ctypes.byref(ctypes.c_int(2)), ctypes.sizeof(ctypes.c_int(2))
+            )
+        except Exception:
+            pass
 
         self.tabs = QTabWidget()
         self.tabs.setTabsClosable(True)
@@ -198,37 +209,53 @@ class MainWindow(QMainWindow):
                     return True
         return super().eventFilter(source, event)
 
+    def create_status_bar(self):
+        self.statusBar().setStyleSheet("QStatusBar { background-color: #21252B; color: #ABB2BF; border-top: 1px solid #181A1F; }")
+        self.cursor_label = QLabel("Ln 1, Col 1")
+        self.encoding_label = QLabel("UTF-8")
+        self.task_label = QLabel("Ready")
+        
+        self.statusBar().addPermanentWidget(self.task_label, 1)
+        self.statusBar().addPermanentWidget(self.encoding_label)
+        self.statusBar().addPermanentWidget(self.cursor_label)
+        
+        self.tabs.currentChanged.connect(self.update_status_bar)
+        
+    def update_status_bar(self, index=None):
+        editor = self.tabs.widget(self.tabs.currentIndex())
+        if editor and isinstance(editor, QPlainTextEdit):
+            cursor = editor.textCursor()
+            self.cursor_label.setText(f"Ln {cursor.blockNumber() + 1}, Col {cursor.columnNumber() + 1}")
+        else:
+            self.cursor_label.setText("")
+
     def init_ui(self):
         self.create_actions()
         self.create_menus()
         self.create_toolbars()
         self.create_dock_windows()
+        self.create_status_bar()
 
-    def create_text_icon(self, text, bg_color):
-        pixmap = QPixmap(32, 32)
+    def create_svg_icon(self, svg_string, color="#ABB2BF"):
+        from PyQt5.QtSvg import QSvgRenderer
+        from PyQt5.QtCore import QByteArray
+        svg_colored = svg_string.replace("{color}", color)
+        renderer = QSvgRenderer(QByteArray(svg_colored.encode('utf-8')))
+        pixmap = QPixmap(24, 24)
         pixmap.fill(Qt.transparent)
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        
-        painter.setBrush(QColor(bg_color))
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(2, 2, 28, 28, 6, 6)
-        
-        painter.setPen(Qt.white)
-        font = QFont("Arial", 12, QFont.Bold)
-        painter.setFont(font)
-        painter.drawText(pixmap.rect(), Qt.AlignCenter, text)
+        renderer.render(painter)
         painter.end()
-        
         return QIcon(pixmap)
 
     def create_actions(self):
-        style = self.style()
+        import icons
         
-        icon_new_design = self.create_text_icon("D*", "#2196F3") # Blue
-        icon_new_sim = self.create_text_icon("S*", "#4CAF50") # Green
-        icon_add_design = self.create_text_icon("+D", "#1976D2") # Dark Blue
-        icon_add_sim = self.create_text_icon("+S", "#388E3C") # Dark Green
+        icon_new_design = self.create_svg_icon(icons.SVG_FILE_PLUS, "#61AFEF")
+        icon_new_sim = self.create_svg_icon(icons.SVG_FLASK, "#98C379")
+        icon_add_design = self.create_svg_icon(icons.SVG_FOLDER_PLUS, "#61AFEF")
+        icon_add_sim = self.create_svg_icon(icons.SVG_FOLDER_PLUS, "#98C379")
         
         self.new_design_act = QAction(icon_new_design, "New Design Source", self)
         self.new_design_act.triggered.connect(self.new_design_source)
@@ -242,26 +269,26 @@ class MainWindow(QMainWindow):
         self.add_sim_act = QAction(icon_add_sim, "Add Simulation Source...", self)
         self.add_sim_act.triggered.connect(self.add_sim_source)
 
-        self.save_act = QAction(style.standardIcon(QStyle.SP_DialogSaveButton), "Save", self)
+        self.save_act = QAction(self.create_svg_icon(icons.SVG_SAVE, "#ABB2BF"), "Save", self)
         self.save_act.setShortcut("Ctrl+S")
         self.save_act.triggered.connect(self.save_file)
 
-        self.format_act = QAction("Format Code (Beautify)", self)
+        self.format_act = QAction(self.create_svg_icon(icons.SVG_FORMAT, "#ABB2BF"), "Format Code (Beautify)", self)
         self.format_act.setShortcut("Shift+Alt+F")
         self.format_act.triggered.connect(self.format_active_code)
 
         self.exit_act = QAction("Exit", self)
         self.exit_act.triggered.connect(self.close)
 
-        self.sim_act = QAction(style.standardIcon(QStyle.SP_MediaPlay), "Simulate (iverilog)", self)
+        self.sim_act = QAction(self.create_svg_icon(icons.SVG_PLAY, "#98C379"), "Simulate (iverilog)", self)
         self.sim_act.setShortcut("F5")
         self.sim_act.triggered.connect(self.simulate)
 
-        self.synth_act = QAction(style.standardIcon(QStyle.SP_CommandLink), "Synthesize (Yosys)", self)
+        self.synth_act = QAction(self.create_svg_icon(icons.SVG_CPU, "#E5C07B"), "Synthesize (Yosys)", self)
         self.synth_act.setShortcut("F6")
         self.synth_act.triggered.connect(self.synthesize)
 
-        self.wave_act = QAction(style.standardIcon(QStyle.SP_DesktopIcon), "View Waveform", self)
+        self.wave_act = QAction(self.create_svg_icon(icons.SVG_ACTIVITY, "#C678DD"), "View Waveform", self)
         self.wave_act.setShortcut("F7")
         self.wave_act.triggered.connect(self.view_waveform)
 
@@ -588,6 +615,8 @@ class MainWindow(QMainWindow):
         timer.setInterval(750) # 750ms after typing stops
         timer.timeout.connect(lambda: self.lint_code(editor))
         editor.textChanged.connect(timer.start)
+        
+        editor.cursorPositionChanged.connect(self.update_status_bar)
         
         index = self.tabs.addTab(editor, title)
         self.tabs.setCurrentIndex(index)
@@ -929,7 +958,12 @@ class MainWindow(QMainWindow):
         self.worker = WorkerThread(cmd, cwd)
         self.worker.output_signal.connect(self.log)
         
+        if hasattr(self, 'task_label'):
+            self.task_label.setText("Running task...")
+        
         def finished(code):
+            if hasattr(self, 'task_label'):
+                self.task_label.setText("Ready")
             self.log(f"\n--- Process finished with exit code {code} ---")
             if code == 0 and on_success:
                 on_success()
