@@ -619,7 +619,7 @@ class MainWindow(QMainWindow):
         
         self.log(f"--- Starting Synthesis Flow for {filename} ---")
         
-        script = f"read_verilog {path}; hierarchy -auto-top; proc; opt; write_json synth_diagram.json"
+        script = f"read_verilog {path}; hierarchy -auto-top; proc; opt; tribuf -logic; opt; write_json synth_diagram.json"
         cmd = f'yosys -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
         
         self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
