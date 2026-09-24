@@ -28,21 +28,33 @@ class WorkerThread(QThread):
 
     def run(self):
         try:
-            env = os.environ.copy()
             oss_bin = r"C:\oss-cad-suite\bin"
             oss_lib = r"C:\oss-cad-suite\lib"
             graphviz_bin = r"C:\Program Files\Graphviz\bin"
-            env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};" + env.get("PATH", "")
-            if "TCL_LIBRARY" in env:
-                del env["TCL_LIBRARY"]
-            if "TK_LIBRARY" in env:
-                del env["TK_LIBRARY"]
-            for key in list(env.keys()):
-                if key.startswith("QT_") or key.startswith("QML"):
-                    del env[key]
+            npm_global = os.path.join(os.environ.get("APPDATA", ""), "npm")
+            clean_path = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};C:\\Windows\\system32;C:\\Windows"
 
-            process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                       text=True, cwd=self.cwd, shell=True, env=env)
+            # Use PowerShell to launch the command in a fully isolated process.
+            # PyInstaller's bootloader calls SetDefaultDllDirectories/AddDllDirectory
+            # which poisons the DLL search order for ALL child processes (even with
+            # a clean env dict).  cmd.exe inherits this contamination, but
+            # powershell.exe creates an independent process tree that does not.
+            escaped_path = clean_path.replace("'", "''")
+            escaped_cwd = self.cwd.replace("'", "''")
+            escaped_cmd = self.cmd.replace("'", "''")
+            ps_script = (
+                f"$env:PATH = '{escaped_path}'; "
+                f"Set-Location -LiteralPath '{escaped_cwd}'; "
+                f"cmd /c '{escaped_cmd}'"
+            )
+
+            process = subprocess.Popen(
+                ["powershell.exe", "-NoProfile", "-NoLogo", "-Command", ps_script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=self.cwd,
+            )
             for line in process.stdout:
                 self.output_signal.emit(line.strip())
             process.wait()
@@ -432,7 +444,11 @@ class MainWindow(QMainWindow):
         env = os.environ.copy()
         oss_bin = r"C:\oss-cad-suite\bin"
         env["PATH"] = f"{oss_bin};" + env.get("PATH", "")
-        subprocess.Popen(f'gtkwave "{target}"', cwd=sim_dir, shell=True, env=env)
+        ps_cmd = f"$env:PATH = '{oss_bin};C:\\Windows\\system32;C:\\Windows'; gtkwave '{target}'"
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-NoLogo", "-Command", ps_cmd],
+            cwd=sim_dir,
+        )
 
     def run_background_task(self, cmd, cwd, on_success=None):
         self.worker = WorkerThread(cmd, cwd)
