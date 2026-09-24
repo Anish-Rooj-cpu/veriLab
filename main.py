@@ -501,20 +501,22 @@ class MainWindow(QMainWindow):
         self.current_files[index] = {"path": None, "type": "sim"}
         
     def add_design_source(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Add Design Source", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
-        if path:
-            dest = os.path.join(self.project_dir, "sources", os.path.basename(path))
-            shutil.copy(path, dest)
-            self.log(f"Added design source: {dest}")
-            self.load_file(dest)
+        paths, _ = QFileDialog.getOpenFileNames(self, "Add Design Sources", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
+        for path in paths:
+            if path:
+                dest = os.path.join(self.project_dir, "sources", os.path.basename(path))
+                shutil.copy(path, dest)
+                self.log(f"Added design source: {dest}")
+                self.load_file(dest)
             
     def add_sim_source(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Add Simulation Source", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
-        if path:
-            dest = os.path.join(self.project_dir, "simulations", os.path.basename(path))
-            shutil.copy(path, dest)
-            self.log(f"Added simulation source: {dest}")
-            self.load_file(dest)
+        paths, _ = QFileDialog.getOpenFileNames(self, "Add Simulation Sources", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
+        for path in paths:
+            if path:
+                dest = os.path.join(self.project_dir, "simulations", os.path.basename(path))
+                shutil.copy(path, dest)
+                self.log(f"Added simulation source: {dest}")
+                self.load_file(dest)
 
     def load_file(self, path):
         for i, data in self.current_files.items():
