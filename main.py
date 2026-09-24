@@ -303,7 +303,7 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.wave_act)
 
     def create_dock_windows(self):
-        self.console_dock = QDockWidget("Bottom Panel", self)
+        self.console_dock = QDockWidget("", self)
         self.console_dock.setObjectName("BottomPanelDock")
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
@@ -324,7 +324,7 @@ class MainWindow(QMainWindow):
         
         self.tcl_input = QLineEdit()
         self.tcl_input.setFont(QFont("Consolas", 12))
-        self.tcl_input.setPlaceholderText("")
+        self.tcl_input.setPlaceholderText("Tcl Console > type a command (simulate, synth, format) or a shell command and press Enter...")
         self.tcl_input.setStyleSheet("background-color: #21252B; color: #ABB2BF; border: 1px solid #181A1F; border-radius: 4px; padding: 8px;")
         self.tcl_input.returnPressed.connect(self.process_tcl_command)
         
