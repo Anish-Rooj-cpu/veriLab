@@ -8,7 +8,7 @@ import shutil
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QAction, QFileDialog, 
                              QTabWidget, QDockWidget, QPlainTextEdit, QMessageBox,
                              QFileSystemModel, QTreeView, QVBoxLayout, QWidget, QSplitter,
-                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle, QCompleter)
+                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle, QCompleter, QLineEdit)
 from PyQt5.QtCore import Qt, QProcess, QThread, pyqtSignal, QSize, QTimer, QStringListModel
 from PyQt5.QtGui import QIcon, QFont, QImage, QPainter, QColor, QPixmap, QTextCursor
 from PyQt5.QtSvg import QSvgRenderer
@@ -244,15 +244,32 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.wave_act)
 
     def create_dock_windows(self):
-        self.console_dock = QDockWidget("Console Output", self)
+        self.console_dock = QDockWidget("Tcl Console / Output", self)
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        
+        console_widget = QWidget()
+        console_layout = QVBoxLayout()
+        console_layout.setContentsMargins(0, 0, 0, 0)
+        console_layout.setSpacing(0)
+        
         self.console = ClickableConsole()
         self.console.setReadOnly(True)
         self.console.setFont(QFont("Consolas", 10))
-        self.console.setStyleSheet("background-color: #1E1E1E; color: #D4D4D4; border: 1px solid #333333;")
+        self.console.setStyleSheet("background-color: #1E1E1E; color: #D4D4D4; border: 1px solid #333333; border-bottom: none;")
         self.console.error_clicked.connect(self.jump_to_error)
-        self.console_dock.setWidget(self.console)
+        
+        self.tcl_input = QLineEdit()
+        self.tcl_input.setFont(QFont("Consolas", 10))
+        self.tcl_input.setPlaceholderText("Tcl Console > type a command (simulate, synth, format) or a shell command and press Enter...")
+        self.tcl_input.setStyleSheet("background-color: #2D2D30; color: #D4D4D4; border: 1px solid #333333; padding: 4px;")
+        self.tcl_input.returnPressed.connect(self.process_tcl_command)
+        
+        console_layout.addWidget(self.console)
+        console_layout.addWidget(self.tcl_input)
+        console_widget.setLayout(console_layout)
+        
+        self.console_dock.setWidget(console_widget)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.console_dock)
 
         self.explorer_dock = QDockWidget("Project Explorer", self)
@@ -276,6 +293,38 @@ class MainWindow(QMainWindow):
 
         self.view_menu.addAction(self.explorer_dock.toggleViewAction())
         self.view_menu.addAction(self.console_dock.toggleViewAction())
+
+    def process_tcl_command(self):
+        cmd = self.tcl_input.text().strip()
+        if not cmd:
+            return
+        
+        self.tcl_input.clear()
+        self.log(f"\nTcl> {cmd}")
+        
+        parts = cmd.split()
+        base = parts[0].lower()
+        
+        if base == "simulate":
+            self.simulate()
+        elif base in ("synthesize", "synth"):
+            self.synthesize()
+        elif base == "format":
+            self.format_active_code()
+        elif base == "clear":
+            self.console.clear()
+        elif base == "exit":
+            self.close()
+        elif base == "help":
+            self.log("Built-in Tcl/Agent Commands:")
+            self.log("  simulate    - Run simulation (iverilog + vvp)")
+            self.log("  synth       - Run synthesis (yosys + netlistsvg)")
+            self.log("  format      - Auto-format current Verilog file")
+            self.log("  clear       - Clear the console")
+            self.log("  exit        - Close Verilog Studio")
+            self.log("Any other command will be executed as a system shell command in the project directory.")
+        else:
+            self.run_background_task(cmd, self.project_dir)
 
     def tree_double_clicked(self, index):
         path = self.file_model.filePath(index)
