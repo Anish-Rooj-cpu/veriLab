@@ -671,8 +671,8 @@ class MainWindow(QMainWindow):
         design_files = glob.glob(os.path.join(src_dir, "*.v")) + glob.glob(os.path.join(src_dir, "*.sv"))
         read_cmds = " ".join([f'read_verilog -overwrite "{f.replace(os.sep, "/")}";' for f in design_files])
         
-        # prep -flatten expands submodules and handles memories properly so netlistsvg doesn't crash on huge arrays
-        script = f"{read_cmds} prep -top {top_module} -flatten; tribuf -logic; opt; write_json synth_diagram.json"
+        # prep (without flatten) preserves memory blocks and sub-modules as clean hierarchical boxes
+        script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; write_json synth_diagram.json"
         cmd = f'yosys -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
         
         self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
