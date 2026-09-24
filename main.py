@@ -140,6 +140,7 @@ class MainWindow(QMainWindow):
         self.current_files = {} 
         
         self.init_ui()
+        self.restore_workspace()
 
     def eventFilter(self, source, event):
         if source == self.tabs.tabBar() and event.type() == event.MouseButtonRelease:
@@ -255,9 +256,12 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.wave_act)
 
     def create_dock_windows(self):
-        self.console_dock = QDockWidget("Tcl Console / Output", self)
+        self.console_dock = QDockWidget("Bottom Panel", self)
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        
+        self.bottom_tabs = QTabWidget()
+        self.bottom_tabs.setDocumentMode(True)
         
         console_widget = QWidget()
         console_layout = QVBoxLayout()
@@ -280,11 +284,48 @@ class MainWindow(QMainWindow):
         console_layout.addWidget(self.tcl_input)
         console_widget.setLayout(console_layout)
         
-        self.console_dock.setWidget(console_widget)
+        from PyQt5.QtWidgets import QTableWidget, QHeaderView
+        self.problems_table = QTableWidget()
+        self.problems_table.setColumnCount(3)
+        self.problems_table.setHorizontalHeaderLabels(["File", "Line", "Message"])
+        self.problems_table.horizontalHeader().setStretchLastSection(True)
+        self.problems_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.problems_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.problems_table.setStyleSheet("background-color: #282C34; color: #ABB2BF; gridline-color: #181A1F;")
+        self.problems_table.itemDoubleClicked.connect(self.problem_clicked)
+        
+        self.synth_table = QTableWidget()
+        self.synth_table.setColumnCount(2)
+        self.synth_table.setHorizontalHeaderLabels(["Resource", "Utilization"])
+        self.synth_table.horizontalHeader().setStretchLastSection(True)
+        self.synth_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.synth_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.synth_table.setStyleSheet("background-color: #282C34; color: #ABB2BF; gridline-color: #181A1F;")
+        
+        self.bottom_tabs.addTab(console_widget, "Tcl Console")
+        self.bottom_tabs.addTab(self.problems_table, "Problems")
+        self.bottom_tabs.addTab(self.synth_table, "Synthesis Report")
+        
+        self.console_dock.setWidget(self.bottom_tabs)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.console_dock)
 
         self.explorer_dock = QDockWidget("Project Explorer", self)
         self.explorer_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+
+    def problem_clicked(self, item):
+        row = item.row()
+        file_path = self.problems_table.item(row, 0).data(Qt.UserRole)
+        line_num = int(self.problems_table.item(row, 1).text())
+        
+        if file_path and os.path.exists(file_path):
+            self.load_file(file_path)
+            editor = self.tabs.currentWidget()
+            if editor:
+                cursor = editor.textCursor()
+                cursor.movePosition(cursor.Start)
+                cursor.movePosition(cursor.Down, cursor.MoveAnchor, line_num - 1)
+                editor.setTextCursor(cursor)
+                editor.setFocus()
         self.explorer_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         
         self.file_model = QFileSystemModel()
@@ -542,13 +583,41 @@ class MainWindow(QMainWindow):
             
             error_lines = []
             temp_basename = os.path.basename(temp_name)
-            # iverilog error format: file.v:line: error: ...
-            for line in out.splitlines():
-                if temp_basename in line:
-                    match = re.search(r':(\d+):\s*(error|syntax error|warning)', line, re.IGNORECASE)
-                    if match:
-                        line_num = int(match.group(1)) - 1 # 0-indexed for editor
+            
+            from PyQt5.QtWidgets import QTableWidgetItem
+            self.problems_table.setRowCount(0)
+            
+            # iverilog error format: file.v:line: error/warning: message
+            for line_out in out.splitlines():
+                # Example: C:\path\file.v:10: syntax error
+                match = re.search(r'^(.*?):(\d+):\s*(.*)$', line_out)
+                if match:
+                    file_path = match.group(1).strip()
+                    line_num_str = match.group(2)
+                    msg = match.group(3).strip()
+                    
+                    if file_path.endswith(temp_basename):
+                        # It's the current file
+                        display_name = os.path.basename(current_path) if current_path else "Unsaved File"
+                        actual_path = current_path
+                        line_num = int(line_num_str) - 1 # 0-indexed for editor
                         error_lines.append(line_num)
+                    else:
+                        display_name = os.path.basename(file_path)
+                        actual_path = file_path
+                    
+                    row = self.problems_table.rowCount()
+                    self.problems_table.insertRow(row)
+                    
+                    item_file = QTableWidgetItem(display_name)
+                    item_file.setData(Qt.UserRole, actual_path)
+                    
+                    item_line = QTableWidgetItem(line_num_str)
+                    item_msg = QTableWidgetItem(msg)
+                    
+                    self.problems_table.setItem(row, 0, item_file)
+                    self.problems_table.setItem(row, 1, item_line)
+                    self.problems_table.setItem(row, 2, item_msg)
             
             editor.setErrors(error_lines)
             os.remove(temp_name)
@@ -730,13 +799,56 @@ class MainWindow(QMainWindow):
         read_cmds = " ".join([f'read_verilog -overwrite "{f.replace(os.sep, "/")}";' for f in design_files])
         
         # prep (without flatten) preserves memory blocks and sub-modules as clean hierarchical boxes
-        script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; write_json synth_diagram.json"
-        cmd = f'yosys -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
+        script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; stat; write_json synth_diagram.json"
+        cmd = f'yosys -l synth.log -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
         
         self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
 
+    def parse_synth_stats(self, log_path):
+        if not os.path.exists(log_path):
+            return
+        
+        self.synth_table.setRowCount(0)
+        from PyQt5.QtWidgets import QTableWidgetItem
+        
+        try:
+            with open(log_path, 'r') as f:
+                content = f.read()
+                
+            import re
+            # Find the final stats block
+            match = re.search(r'=== design hierarchy ===(.*)', content, re.DOTALL)
+            if not match:
+                match = re.search(r'Printing statistics\.(.*)', content, re.DOTALL)
+                
+            if match:
+                stats_text = match.group(1)
+                # Look for lines like "   Number of wires:   33" or "   $add    1"
+                for line in stats_text.splitlines():
+                    line = line.strip()
+                    if not line: continue
+                    if line.startswith('Number of') or line.startswith('$'):
+                        parts = [p.strip() for p in line.split(':')]
+                        if len(parts) == 2:
+                            name, val = parts
+                        else:
+                            parts = line.rsplit(maxsplit=1)
+                            if len(parts) == 2:
+                                name, val = parts
+                            else:
+                                continue
+                                
+                        row = self.synth_table.rowCount()
+                        self.synth_table.insertRow(row)
+                        self.synth_table.setItem(row, 0, QTableWidgetItem(name))
+                        self.synth_table.setItem(row, 1, QTableWidgetItem(val))
+        except Exception:
+            pass
+
     def post_synthesize(self, synth_dir):
         svg_path = os.path.join(synth_dir, "synth_diagram.svg")
+        log_path = os.path.join(synth_dir, "synth.log")
+        self.parse_synth_stats(log_path)
         if os.path.exists(svg_path):
             self.log(f"Synthesis diagram saved: {svg_path}")
             self.log("Opening diagram in browser...")
@@ -774,6 +886,43 @@ class MainWindow(QMainWindow):
                 
         self.worker.finished_signal.connect(finished)
         self.worker.start()
+
+    def closeEvent(self, event):
+        import project_manager
+        tabs_paths = []
+        for i in range(self.tabs.count()):
+            tabs_paths.append(self.current_files[i]['path'])
+        
+        project_manager.save_workspace(
+            self.project_dir, 
+            tabs_paths, 
+            self.tabs.currentIndex(),
+            self.saveGeometry().data().hex(),
+            self.saveState().data().hex()
+        )
+        event.accept()
+
+    def restore_workspace(self):
+        import project_manager
+        from PyQt5.QtCore import QByteArray
+        workspace = project_manager.load_workspace(self.project_dir)
+        if workspace:
+            open_tabs = workspace.get("open_tabs", [])
+            active_index = workspace.get("active_index", 0)
+            geom = workspace.get("window_geometry")
+            state = workspace.get("window_state")
+            
+            for path in open_tabs:
+                if path and os.path.exists(path):
+                    self.load_file(path)
+            
+            if 0 <= active_index < self.tabs.count():
+                self.tabs.setCurrentIndex(active_index)
+                
+            if geom:
+                self.restoreGeometry(QByteArray.fromHex(geom.encode('utf-8')))
+            if state:
+                self.restoreState(QByteArray.fromHex(state.encode('utf-8')))
 
 from PyQt5.QtGui import QPalette
 
