@@ -7,26 +7,27 @@ class VerilogHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         # Monaco Colors
         self.fmt_keyword = QTextCharFormat()
-        self.fmt_keyword.setForeground(QColor("#569CD6")) # Blue
+        self.fmt_keyword.setForeground(QColor("#C678DD")) # Purple
         self.fmt_keyword.setFontWeight(QFont.Bold)
         
         self.fmt_type = QTextCharFormat()
-        self.fmt_type.setForeground(QColor("#4EC9B0")) # Teal
+        self.fmt_type.setForeground(QColor("#E5C07B")) # Yellow
         
         self.fmt_number = QTextCharFormat()
-        self.fmt_number.setForeground(QColor("#B5CEA8")) # Light Green
+        self.fmt_number.setForeground(QColor("#D19A66")) # Orange
         
         self.fmt_string = QTextCharFormat()
-        self.fmt_string.setForeground(QColor("#CE9178")) # Orange
+        self.fmt_string.setForeground(QColor("#98C379")) # Green
         
         self.fmt_comment = QTextCharFormat()
-        self.fmt_comment.setForeground(QColor("#6A9955")) # Green
+        self.fmt_comment.setForeground(QColor("#5C6370")) # Grey
+        self.fmt_comment.setFontItalic(True)
         
         # Rainbow bracket colors
         self.rainbow_colors = [
-            QColor("#FFD700"), # Gold
-            QColor("#DA70D6"), # Orchid
-            QColor("#179FFF")  # Light Blue
+            QColor("#61AFEF"), # Blue
+            QColor("#E5C07B"), # Yellow
+            QColor("#C678DD")  # Purple
         ]
         self.rainbow_fmts = []
         for c in self.rainbow_colors:

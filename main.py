@@ -53,14 +53,17 @@ class StartupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Welcome to Verilog Studio")
-        self.setFixedSize(450, 200)
+        self.setFixedSize(480, 220)
+        self.setStyleSheet("QDialog { background-color: #21252B; } QLabel { color: #ABB2BF; } QPushButton { background-color: #3E4451; color: #ABB2BF; border: none; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 11pt; } QPushButton:hover { background-color: #4B5263; }")
         self.project_dir = None
         
         layout = QVBoxLayout()
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(20)
         
-        label = QLabel("Welcome to Verilog Studio!\nPlease open an existing project or create a new one.")
+        label = QLabel("Welcome to Verilog Studio\nCreate or open a project to continue.")
         label.setAlignment(Qt.AlignCenter)
-        label.setFont(QFont("Segoe UI", 12))
+        label.setFont(QFont("Segoe UI", 13))
         layout.addWidget(label)
         
         btn_layout = QHBoxLayout()
@@ -255,14 +258,14 @@ class MainWindow(QMainWindow):
         
         self.console = ClickableConsole()
         self.console.setReadOnly(True)
-        self.console.setFont(QFont("Consolas", 10))
-        self.console.setStyleSheet("background-color: #1E1E1E; color: #D4D4D4; border: 1px solid #333333; border-bottom: none;")
+        self.console.setFont(QFont("Consolas", 12))
+        self.console.setStyleSheet("background-color: #282C34; color: #ABB2BF; border: none; padding: 4px;")
         self.console.error_clicked.connect(self.jump_to_error)
         
         self.tcl_input = QLineEdit()
-        self.tcl_input.setFont(QFont("Consolas", 10))
+        self.tcl_input.setFont(QFont("Consolas", 12))
         self.tcl_input.setPlaceholderText("Tcl Console > type a command (simulate, synth, format) or a shell command and press Enter...")
-        self.tcl_input.setStyleSheet("background-color: #2D2D30; color: #D4D4D4; border: 1px solid #333333; padding: 4px;")
+        self.tcl_input.setStyleSheet("background-color: #21252B; color: #ABB2BF; border: 1px solid #181A1F; border-radius: 4px; padding: 8px;")
         self.tcl_input.returnPressed.connect(self.process_tcl_command)
         
         console_layout.addWidget(self.console)
@@ -288,7 +291,9 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(2, True)
         self.tree.setColumnHidden(3, True)
         self.tree.setSelectionMode(QTreeView.ExtendedSelection)
-        self.tree.setStyleSheet("background-color: #252526; color: #CCCCCC; border: none; alternate-background-color: #2D2D30;")
+        self.tree.setStyleSheet("QTreeView { background-color: #21252B; color: #ABB2BF; border: none; font-size: 11pt; }"
+                                "QTreeView::item { padding: 4px; border-radius: 4px; }"
+                                "QTreeView::item:selected { background-color: #3E4451; color: #FFFFFF; }")
         
         self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self.open_tree_menu)
@@ -718,66 +723,130 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    # Global Dark Palette
+    # Set modern UI font
+    app.setFont(QFont("Segoe UI", 10))
+    
+    # Global Dark Palette (One Dark Inspired)
     dark_palette = QPalette()
-    dark_palette.setColor(QPalette.Window, QColor(45, 45, 48))
-    dark_palette.setColor(QPalette.WindowText, QColor(204, 204, 204))
-    dark_palette.setColor(QPalette.Base, QColor(30, 30, 30))
-    dark_palette.setColor(QPalette.AlternateBase, QColor(45, 45, 48))
-    dark_palette.setColor(QPalette.ToolTipBase, QColor(204, 204, 204))
-    dark_palette.setColor(QPalette.ToolTipText, QColor(204, 204, 204))
-    dark_palette.setColor(QPalette.Text, QColor(204, 204, 204))
-    dark_palette.setColor(QPalette.Button, QColor(45, 45, 48))
-    dark_palette.setColor(QPalette.ButtonText, QColor(204, 204, 204))
-    dark_palette.setColor(QPalette.BrightText, Qt.red)
-    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.Highlight, QColor(38, 79, 120))
+    dark_palette.setColor(QPalette.Window, QColor(33, 37, 43))
+    dark_palette.setColor(QPalette.WindowText, QColor(171, 178, 191))
+    dark_palette.setColor(QPalette.Base, QColor(40, 44, 52))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(33, 37, 43))
+    dark_palette.setColor(QPalette.ToolTipBase, QColor(171, 178, 191))
+    dark_palette.setColor(QPalette.ToolTipText, QColor(171, 178, 191))
+    dark_palette.setColor(QPalette.Text, QColor(171, 178, 191))
+    dark_palette.setColor(QPalette.Button, QColor(33, 37, 43))
+    dark_palette.setColor(QPalette.ButtonText, QColor(171, 178, 191))
+    dark_palette.setColor(QPalette.BrightText, QColor(224, 108, 117))
+    dark_palette.setColor(QPalette.Link, QColor(97, 175, 239))
+    dark_palette.setColor(QPalette.Highlight, QColor(62, 68, 81))
     dark_palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
     app.setPalette(dark_palette)
     
     app.setStyleSheet("""
-        QTabWidget::pane { border: 1px solid #333333; }
+        QMainWindow {
+            background-color: #21252B;
+        }
+        QTabWidget::pane { 
+            border: none;
+            background-color: #282C34;
+        }
         QTabBar::tab {
-            background: #2D2D30;
-            color: #999999;
-            padding: 8px 20px;
-            border: 1px solid #333333;
-            border-bottom: none;
+            background: #21252B;
+            color: #7F848E;
+            padding: 10px 24px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            border: none;
+            margin-right: 2px;
+            font-size: 10pt;
         }
         QTabBar::tab:selected {
-            background: #1E1E1E;
-            color: #FFFFFF;
-            border-top: 2px solid #007ACC;
+            background: #282C34;
+            color: #ABB2BF;
+            border-top: 3px solid #61AFEF;
+            font-weight: bold;
+        }
+        QTabBar::tab:hover:!selected {
+            background: #2C313A;
+            color: #ABB2BF;
         }
         QDockWidget {
-            color: #CCCCCC;
+            color: #ABB2BF;
+            font-size: 11pt;
             titlebar-close-icon: url(close.png);
             titlebar-normal-icon: url(normal.png);
         }
         QDockWidget::title {
-            background: #2D2D30;
-            padding-left: 10px;
-            padding-top: 4px;
+            background: #21252B;
+            padding: 8px 12px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            font-weight: bold;
         }
         QMenuBar {
-            background-color: #2D2D30;
-            color: #CCCCCC;
+            background-color: #21252B;
+            color: #ABB2BF;
+            font-size: 10pt;
+            padding: 4px;
+        }
+        QMenuBar::item {
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin-right: 4px;
         }
         QMenuBar::item:selected {
-            background-color: #3E3E42;
+            background-color: #2C313A;
         }
         QMenu {
-            background-color: #1E1E1E;
-            color: #CCCCCC;
-            border: 1px solid #333333;
+            background-color: #282C34;
+            color: #ABB2BF;
+            border: 1px solid #181A1F;
+            border-radius: 6px;
+            padding: 4px;
+            font-size: 10pt;
+        }
+        QMenu::item {
+            padding: 6px 24px 6px 24px;
+            border-radius: 4px;
         }
         QMenu::item:selected {
-            background-color: #007ACC;
+            background-color: #3E4451;
+            color: #FFFFFF;
         }
         QToolBar {
-            background-color: #2D2D30;
+            background-color: #21252B;
             border: none;
+            padding: 6px;
+            spacing: 8px;
+        }
+        QToolButton {
+            border: none;
+            border-radius: 4px;
             padding: 4px;
+        }
+        QToolButton:hover {
+            background-color: #2C313A;
+        }
+        QToolButton:pressed {
+            background-color: #3E4451;
+        }
+        QMessageBox {
+            background-color: #282C34;
+            color: #ABB2BF;
+            font-size: 10pt;
+        }
+        QMessageBox QPushButton {
+            background-color: #3E4451;
+            color: #ABB2BF;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 16px;
+            font-weight: bold;
+        }
+        QMessageBox QPushButton:hover {
+            background-color: #4B5263;
+            color: #FFFFFF;
         }
     """)
     

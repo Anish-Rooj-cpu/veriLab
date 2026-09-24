@@ -28,14 +28,15 @@ class CodeEditor(QPlainTextEdit):
         self.updateLineNumberAreaWidth(0)
         self.highlightCurrentLine()
 
-        font = QFont("Consolas", 11)
+        font = QFont("Consolas", 13)
         self.setFont(font)
         
         self.setStyleSheet("""
             QPlainTextEdit {
-                background-color: #1E1E1E;
-                color: #D4D4D4;
-                selection-background-color: #264F78;
+                background-color: #282C34;
+                color: #ABB2BF;
+                selection-background-color: #3E4451;
+                border: none;
             }
         """)
 
@@ -76,7 +77,7 @@ class CodeEditor(QPlainTextEdit):
 
         if not self.isReadOnly():
             selection = QTextEdit.ExtraSelection()
-            lineColor = QColor("#2A2D2E")
+            lineColor = QColor("#2C313A")
             
             selection.format.setBackground(lineColor)
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
@@ -90,7 +91,7 @@ class CodeEditor(QPlainTextEdit):
             if block.isValid():
                 selection = QTextEdit.ExtraSelection()
                 selection.format.setUnderlineStyle(QTextCharFormat.SpellCheckUnderline)
-                selection.format.setUnderlineColor(QColor("red"))
+                selection.format.setUnderlineColor(QColor("#E06C75"))
                 
                 cursor = QTextCursor(block)
                 cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
@@ -101,7 +102,7 @@ class CodeEditor(QPlainTextEdit):
         for cursor in getattr(self, 'extra_cursors', []):
             # Block highlight
             selection = QTextEdit.ExtraSelection()
-            selection.format.setBackground(QColor("#2A2D2E"))
+            selection.format.setBackground(QColor("#2C313A"))
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
             selection.cursor = cursor
             selection.cursor.clearSelection()
@@ -111,15 +112,15 @@ class CodeEditor(QPlainTextEdit):
             c_sel = QTextEdit.ExtraSelection()
             c_sel.cursor = QTextCursor(cursor)
             c_sel.cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
-            c_sel.format.setBackground(QColor("#D4D4D4"))
-            c_sel.format.setForeground(QColor("#1E1E1E"))
+            c_sel.format.setBackground(QColor("#ABB2BF"))
+            c_sel.format.setForeground(QColor("#282C34"))
             extraSelections.append(c_sel)
 
         self.setExtraSelections(extraSelections)
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor("#1E1E1E"))
+        painter.fillRect(event.rect(), QColor("#282C34"))
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()
@@ -129,7 +130,7 @@ class CodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(blockNumber + 1)
-                painter.setPen(QColor("#858585"))
+                painter.setPen(QColor("#4B5263"))
                 painter.drawText(0, int(top), self.lineNumberArea.width() - 2, self.fontMetrics().height(),
                                  Qt.AlignRight, number)
 
