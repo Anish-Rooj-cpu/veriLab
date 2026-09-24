@@ -15,6 +15,7 @@ from PyQt5.QtSvg import QSvgRenderer
 
 from code_editor import CodeEditor
 from highlighter import VerilogHighlighter
+import formatter
 
 class WorkerThread(QThread):
     output_signal = pyqtSignal(str)
@@ -184,6 +185,10 @@ class MainWindow(QMainWindow):
         self.save_act.setShortcut("Ctrl+S")
         self.save_act.triggered.connect(self.save_file)
 
+        self.format_act = QAction("Format Code (Beautify)", self)
+        self.format_act.setShortcut("Ctrl+Shift+F")
+        self.format_act.triggered.connect(self.format_active_code)
+
         self.exit_act = QAction("Exit", self)
         self.exit_act.triggered.connect(self.close)
 
@@ -212,6 +217,9 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(self.exit_act)
 
+        edit_menu = menubar.addMenu("Edit")
+        edit_menu.addAction(self.format_act)
+
         run_menu = menubar.addMenu("Flow")
         run_menu.addAction(self.sim_act)
         run_menu.addAction(self.synth_act)
@@ -226,6 +234,8 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addAction(self.add_design_act)
         toolbar.addAction(self.add_sim_act)
+        toolbar.addSeparator()
+        toolbar.addAction(self.format_act)
         toolbar.addSeparator()
         toolbar.addAction(self.sim_act)
         toolbar.addAction(self.synth_act)
@@ -348,6 +358,30 @@ class MainWindow(QMainWindow):
         if index in self.current_files:
             del self.current_files[index]
         self.tabs.removeTab(index)
+
+    def format_active_code(self):
+        index = self.tabs.currentIndex()
+        if index == -1:
+            return
+            
+        editor = self.tabs.widget(index)
+        code = editor.toPlainText()
+        
+        try:
+            from formatter import format_verilog
+            formatted_code = format_verilog(code)
+            
+            # Update editor while preserving scroll and cursor if possible
+            cursor = editor.textCursor()
+            v_scroll = editor.verticalScrollBar().value()
+            
+            editor.setPlainText(formatted_code)
+            
+            editor.setTextCursor(cursor)
+            editor.verticalScrollBar().setValue(v_scroll)
+            self.log("Formatted active file.")
+        except Exception as e:
+            self.log(f"Formatting failed: {e}")
 
     def new_design_source(self):
         index = self.create_editor(title="Untitled_Design.v")
