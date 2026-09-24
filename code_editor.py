@@ -79,40 +79,6 @@ class CodeEditor(QPlainTextEdit):
     def setErrors(self, error_lines):
         self._errors = set(error_lines)
         self.highlightCurrentLine()
-        
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        painter = QPainter(self.viewport())
-        painter.setPen(QColor("#3E4451"))
-        
-        block = self.firstVisibleBlock()
-        top = self.blockBoundingGeometry(block).translated(self.contentOffset()).top()
-        bottom = top + self.blockBoundingRect(block).height()
-        
-        space_width = self.fontMetrics().horizontalAdvance(' ')
-        
-        while block.isValid() and top <= event.rect().bottom():
-            if block.isVisible() and bottom >= event.rect().top():
-                text = block.text()
-                stripped = text.lstrip(' \t')
-                indent = len(text) - len(stripped)
-                if not stripped:
-                    prev_b = block.previous()
-                    lookback = 0
-                    while prev_b.isValid() and not prev_b.text().lstrip(' \t') and lookback < 30:
-                        prev_b = prev_b.previous()
-                        lookback += 1
-                    if prev_b.isValid():
-                        prev_text = prev_b.text()
-                        indent = len(prev_text) - len(prev_text.lstrip(' \t'))
-                        
-                for i in range(1, indent // 4 + 1):
-                    x = self.document().documentMargin() + (i * 4 * space_width) + self.contentOffset().x()
-                    painter.drawLine(int(x), int(top), int(x), int(bottom))
-            
-            block = block.next()
-            top = bottom
-            bottom = top + self.blockBoundingRect(block).height()
 
     def highlightCurrentLine(self):
         extraSelections = []
