@@ -324,7 +324,7 @@ class MainWindow(QMainWindow):
         
         self.tcl_input = QLineEdit()
         self.tcl_input.setFont(QFont("Consolas", 12))
-        self.tcl_input.setPlaceholderText("Tcl Console > type a command (simulate, synth, format) or a shell command and press Enter...")
+        self.tcl_input.setPlaceholderText("")
         self.tcl_input.setStyleSheet("background-color: #21252B; color: #ABB2BF; border: 1px solid #181A1F; border-radius: 4px; padding: 8px;")
         self.tcl_input.returnPressed.connect(self.process_tcl_command)
         
@@ -970,7 +970,8 @@ if __name__ == "__main__":
             background-color: #21252B;
         }
         QTabWidget::pane { 
-            border: none;
+            border: 0;
+            border-top: 1px solid #21252B;
             background-color: #282C34;
         }
         QTabBar::tab {
