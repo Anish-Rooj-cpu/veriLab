@@ -32,7 +32,7 @@ class WorkerThread(QThread):
             oss_lib = r"C:\oss-cad-suite\lib"
             graphviz_bin = r"C:\Program Files\Graphviz\bin"
             npm_global = os.path.join(os.environ.get("APPDATA", ""), "npm")
-            env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};C:\\Windows\\system32;C:\\Windows"
+            env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};" + env.get("PATH", "")
             # Strip PyInstaller env vars that conflict with oss-cad-suite tools
             for key in list(env.keys()):
                 if key in ("TCL_LIBRARY", "TK_LIBRARY") or key.startswith("QT_") or key.startswith("QML"):
