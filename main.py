@@ -17,6 +17,26 @@ from code_editor import CodeEditor
 from highlighter import VerilogHighlighter
 import formatter
 
+APP_VERSION = "1.0.0"
+
+class UpdateCheckerThread(QThread):
+    update_available = pyqtSignal(str, str)
+    
+    def run(self):
+        import urllib.request
+        import json
+        try:
+            url = "https://api.github.com/repos/Anish-Rooj-cpu/verilog-studio/releases/latest"
+            req = urllib.request.Request(url, headers={'User-Agent': 'VerilogStudio-App'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                latest_version = data.get("tag_name", "").lstrip("v")
+                release_url = data.get("html_url", "")
+                if latest_version:
+                    self.update_available.emit(latest_version, release_url)
+        except Exception as e:
+            pass
+
 class WorkerThread(QThread):
     output_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(int)
@@ -140,8 +160,35 @@ class MainWindow(QMainWindow):
         self.current_files = {} 
         
         self.init_ui()
+        
+        self.update_thread = UpdateCheckerThread()
+        self.update_thread.update_available.connect(self.check_version)
+        self.update_thread.start()
 
-
+    def check_version(self, latest_version, url):
+        def parse_version(v):
+            return [int(x) for x in v.split('.') if x.isdigit()]
+        
+        try:
+            current = parse_version(APP_VERSION)
+            latest = parse_version(latest_version)
+            
+            if latest > current:
+                reply = QMessageBox.question(
+                    self, 
+                    "Update Available", 
+                    f"A new version of Verilog Studio (v{latest_version}) is available!\n\n"
+                    f"You are currently running v{APP_VERSION}.\n\n"
+                    f"Would you like to download the update?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes
+                )
+                if reply == QMessageBox.Yes:
+                    from PyQt5.QtGui import QDesktopServices
+                    from PyQt5.QtCore import QUrl
+                    QDesktopServices.openUrl(QUrl(url))
+        except Exception:
+            pass
     def eventFilter(self, source, event):
         if source == self.tabs.tabBar() and event.type() == event.MouseButtonRelease:
             if event.button() == Qt.MiddleButton:
