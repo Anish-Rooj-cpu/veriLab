@@ -257,6 +257,7 @@ class MainWindow(QMainWindow):
 
     def create_dock_windows(self):
         self.console_dock = QDockWidget("Bottom Panel", self)
+        self.console_dock.setObjectName("BottomPanelDock")
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         
@@ -310,6 +311,7 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.console_dock)
 
         self.explorer_dock = QDockWidget("Project Explorer", self)
+        self.explorer_dock.setObjectName("ProjectExplorerDock")
         self.explorer_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
 
     def problem_clicked(self, item):
