@@ -314,20 +314,6 @@ class MainWindow(QMainWindow):
         self.explorer_dock.setObjectName("ProjectExplorerDock")
         self.explorer_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
 
-    def problem_clicked(self, item):
-        row = item.row()
-        file_path = self.problems_table.item(row, 0).data(Qt.UserRole)
-        line_num = int(self.problems_table.item(row, 1).text())
-        
-        if file_path and os.path.exists(file_path):
-            self.load_file(file_path)
-            editor = self.tabs.currentWidget()
-            if editor:
-                cursor = editor.textCursor()
-                cursor.movePosition(cursor.Start)
-                cursor.movePosition(cursor.Down, cursor.MoveAnchor, line_num - 1)
-                editor.setTextCursor(cursor)
-                editor.setFocus()
         self.explorer_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         
         self.file_model = QFileSystemModel()
@@ -356,6 +342,21 @@ class MainWindow(QMainWindow):
 
         self.view_menu.addAction(self.explorer_dock.toggleViewAction())
         self.view_menu.addAction(self.console_dock.toggleViewAction())
+
+    def problem_clicked(self, item):
+        row = item.row()
+        file_path = self.problems_table.item(row, 0).data(Qt.UserRole)
+        line_num = int(self.problems_table.item(row, 1).text())
+        
+        if file_path and os.path.exists(file_path):
+            self.load_file(file_path)
+            editor = self.tabs.currentWidget()
+            if editor:
+                cursor = editor.textCursor()
+                cursor.movePosition(cursor.Start)
+                cursor.movePosition(cursor.Down, cursor.MoveAnchor, line_num - 1)
+                editor.setTextCursor(cursor)
+                editor.setFocus()
 
     def process_tcl_command(self):
         cmd = self.tcl_input.text().strip()
