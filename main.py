@@ -134,11 +134,21 @@ class MainWindow(QMainWindow):
         self.tabs.setTabsClosable(True)
         self.tabs.setDocumentMode(True) # Cleaner UI for tabs
         self.tabs.tabCloseRequested.connect(self.close_tab)
+        self.tabs.tabBar().installEventFilter(self)
         self.setCentralWidget(self.tabs)
 
         self.current_files = {} 
         
         self.init_ui()
+
+    def eventFilter(self, source, event):
+        if source == self.tabs.tabBar() and event.type() == event.MouseButtonRelease:
+            if event.button() == Qt.MiddleButton:
+                index = self.tabs.tabBar().tabAt(event.pos())
+                if index >= 0:
+                    self.close_tab(index)
+                    return True
+        return super().eventFilter(source, event)
 
     def init_ui(self):
         self.create_actions()
@@ -289,6 +299,7 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(2, True)
         self.tree.setColumnHidden(3, True)
         self.tree.setSelectionMode(QTreeView.ExtendedSelection)
+        self.tree.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.tree.setEditTriggers(QAbstractItemView.EditKeyPressed)
         self.tree.setStyleSheet("QTreeView { background-color: #21252B; color: #ABB2BF; border: none; font-size: 11pt; }"
                                 "QTreeView::item { padding: 4px; border-radius: 4px; }"
@@ -379,23 +390,44 @@ class MainWindow(QMainWindow):
             is_dir = os.path.isdir(path)
             
             new_file_act = menu.addAction("New File") if is_dir else None
+            new_folder_act = menu.addAction("New Folder") if is_dir else None
             rename_act = menu.addAction("Rename")
             delete_act = menu.addAction("Delete")
+            menu.addSeparator()
+            reveal_act = menu.addAction("Reveal in Explorer")
+            copy_path_act = menu.addAction("Copy Full Path")
             
             action = menu.exec_(self.tree.viewport().mapToGlobal(position))
             
             if action and action == new_file_act:
                 self.create_new_file_in_tree(path)
+            elif action and action == new_folder_act:
+                self.create_new_folder_in_tree(path)
             elif action == rename_act:
                 self.tree.edit(index)
             elif action == delete_act:
                 self.delete_files_in_tree(selected_paths)
+            elif action == reveal_act:
+                import subprocess
+                subprocess.Popen(f'explorer /select,"{os.path.normpath(path)}"')
+            elif action == copy_path_act:
+                QApplication.clipboard().setText(os.path.normpath(path))
         else:
             delete_act = menu.addAction(f"Delete {len(selected_paths)} items")
             action = menu.exec_(self.tree.viewport().mapToGlobal(position))
             
             if action == delete_act:
                 self.delete_files_in_tree(selected_paths)
+
+    def create_new_folder_in_tree(self, dir_path):
+        from PyQt5.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "New Folder", "Enter folder name:")
+        if ok and name:
+            new_path = os.path.join(dir_path, name)
+            try:
+                os.makedirs(new_path, exist_ok=True)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not create folder: {e}")
 
     def create_new_file_in_tree(self, dir_path):
         from PyQt5.QtWidgets import QInputDialog
@@ -561,7 +593,7 @@ class MainWindow(QMainWindow):
         self.current_files[index] = {"path": None, "type": "sim"}
         
     def add_design_source(self):
-        paths, _ = QFileDialog.getOpenFileNames(self, "Add Design Sources", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
+        paths, _ = QFileDialog.getOpenFileNames(self, "Add Design Sources", "", "Verilog & Data Files (*.v *.sv *.hex *.mem *.txt);;All Files (*.*)")
         for path in paths:
             if path:
                 dest = os.path.join(self.project_dir, "sources", os.path.basename(path))
@@ -570,7 +602,7 @@ class MainWindow(QMainWindow):
                 self.load_file(dest)
             
     def add_sim_source(self):
-        paths, _ = QFileDialog.getOpenFileNames(self, "Add Simulation Sources", "", "Verilog Files (*.v *.sv);;All Files (*.*)")
+        paths, _ = QFileDialog.getOpenFileNames(self, "Add Simulation Sources", "", "Verilog & Data Files (*.v *.sv *.hex *.mem *.txt);;All Files (*.*)")
         for path in paths:
             if path:
                 dest = os.path.join(self.project_dir, "simulations", os.path.basename(path))
