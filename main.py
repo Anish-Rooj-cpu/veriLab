@@ -396,29 +396,12 @@ class MainWindow(QMainWindow):
 
     def post_synthesize(self, synth_dir):
         svg_path = os.path.join(synth_dir, "synth_diagram.svg")
-        png_path = os.path.join(synth_dir, "synth_diagram.png")
         if os.path.exists(svg_path):
-            self.log("Converting SVG to PNG...")
-            self.convert_svg_to_png(svg_path, png_path)
-            self.log(f"Saved PNG to {png_path}")
-            self.log(f"Opening Synthesis Diagram: {png_path}")
-            webbrowser.open(png_path)
+            self.log(f"Synthesis diagram saved: {svg_path}")
+            self.log("Opening diagram in browser...")
+            webbrowser.open(svg_path)
         else:
             self.log("Error: SVG file was not generated.")
-
-    def convert_svg_to_png(self, svg_path, png_path):
-        try:
-            renderer = QSvgRenderer(svg_path)
-            svg_size = renderer.defaultSize()
-            scale = 2.0
-            image = QImage(int(svg_size.width() * scale), int(svg_size.height() * scale), QImage.Format_ARGB32)
-            image.fill(QColor("white"))
-            painter = QPainter(image)
-            renderer.render(painter)
-            painter.end()
-            image.save(png_path, "PNG")
-        except Exception as e:
-            self.log(f"Error converting SVG to PNG: {e}")
 
     def view_waveform(self):
         sim_dir = os.path.join(self.project_dir, "simulations")
