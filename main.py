@@ -247,7 +247,7 @@ class MainWindow(QMainWindow):
         self.console = ClickableConsole()
         self.console.setReadOnly(True)
         self.console.setFont(QFont("Consolas", 10))
-        self.console.setStyleSheet("background-color: #FAFAFA; color: #111111; border: 1px solid #CCC;")
+        self.console.setStyleSheet("background-color: #1E1E1E; color: #D4D4D4; border: 1px solid #333333;")
         self.console.error_clicked.connect(self.jump_to_error)
         self.console_dock.setWidget(self.console)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.console_dock)
@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(1, True)
         self.tree.setColumnHidden(2, True)
         self.tree.setColumnHidden(3, True)
-        self.tree.setStyleSheet("background-color: #FFFFFF; color: #000000; border: none;")
+        self.tree.setStyleSheet("background-color: #252526; color: #CCCCCC; border: none; alternate-background-color: #2D2D30;")
         
         self.explorer_dock.setWidget(self.tree)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.explorer_dock)
@@ -554,9 +554,28 @@ class MainWindow(QMainWindow):
         self.worker.finished_signal.connect(finished)
         self.worker.start()
 
+from PyQt5.QtGui import QPalette
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    
+    # Global Dark Palette
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.Window, QColor(45, 45, 48))
+    dark_palette.setColor(QPalette.WindowText, QColor(204, 204, 204))
+    dark_palette.setColor(QPalette.Base, QColor(30, 30, 30))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(45, 45, 48))
+    dark_palette.setColor(QPalette.ToolTipBase, QColor(204, 204, 204))
+    dark_palette.setColor(QPalette.ToolTipText, QColor(204, 204, 204))
+    dark_palette.setColor(QPalette.Text, QColor(204, 204, 204))
+    dark_palette.setColor(QPalette.Button, QColor(45, 45, 48))
+    dark_palette.setColor(QPalette.ButtonText, QColor(204, 204, 204))
+    dark_palette.setColor(QPalette.BrightText, Qt.red)
+    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+    app.setPalette(dark_palette)
     
     dialog = StartupDialog()
     if dialog.exec_() == QDialog.Accepted and dialog.project_dir:

@@ -32,9 +32,9 @@ class CodeEditor(QPlainTextEdit):
         
         self.setStyleSheet("""
             QPlainTextEdit {
-                background-color: #FFFFFF;
-                color: #000000;
-                selection-background-color: #A6D2FF;
+                background-color: #1E1E1E;
+                color: #D4D4D4;
+                selection-background-color: #264F78;
             }
         """)
 
@@ -75,8 +75,7 @@ class CodeEditor(QPlainTextEdit):
 
         if not self.isReadOnly():
             selection = QTextEdit.ExtraSelection()
-            lineColor = QColor(Qt.yellow).lighter(160)
-            lineColor.setAlpha(30)
+            lineColor = QColor("#2A2D2E")
             
             selection.format.setBackground(lineColor)
             selection.format.setProperty(QTextFormat.FullWidthSelection, True)
@@ -101,7 +100,7 @@ class CodeEditor(QPlainTextEdit):
 
     def lineNumberAreaPaintEvent(self, event):
         painter = QPainter(self.lineNumberArea)
-        painter.fillRect(event.rect(), QColor("#F0F0F0"))
+        painter.fillRect(event.rect(), QColor("#1E1E1E"))
 
         block = self.firstVisibleBlock()
         blockNumber = block.blockNumber()

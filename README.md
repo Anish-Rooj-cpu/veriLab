@@ -11,6 +11,7 @@ A lightweight, fully-featured Verilog IDE for Windows that integrates code editi
 * **Waveform Viewer (GTKWave):** Launch GTKWave directly from the IDE to analyze your generated `.vcd` files instantly.
 * **Smart File Import:** Use the colorful toolbar to "Add Design Source" or "Add Simulation Source", which automatically copies files from anywhere on your disk directly into your structured project hierarchy.
 * **Auto-Format Code (Beautifier):** Press `Ctrl+Shift+F` (or click "Format Code" in the toolbar/Edit menu) to instantly clean up your Verilog code indentation and spacing.
+* **Monaco Dark Theme & Rainbow Bracketing:** Enjoy a beautiful, VS Code-inspired dark theme with intelligent "rainbow" syntax highlighting for Verilog blocks (`module`/`endmodule`, `begin`/`end`, etc.) to easily visualize nested code!
 
 ## Prerequisites 🛠️
 
