@@ -330,10 +330,37 @@ class MainWindow(QMainWindow):
             self.log("  synth       - Run synthesis (yosys + netlistsvg)")
             self.log("  format      - Auto-format current Verilog file")
             self.log("  clear       - Clear the console")
+            self.log("  cd <dir>    - Change current directory")
+            self.log("  pwd         - Print current directory")
             self.log("  exit        - Close Verilog Studio")
-            self.log("Any other command will be executed as a system shell command in the project directory.")
+            self.log("Any other command will be executed as a system shell command.")
+        elif base == "cd":
+            if len(parts) > 1:
+                target_dir = " ".join(parts[1:])
+                if hasattr(self, 'console_cwd'):
+                    target_dir = os.path.join(self.console_cwd, target_dir)
+                else:
+                    target_dir = os.path.join(self.project_dir, target_dir)
+                target_dir = os.path.abspath(target_dir)
+                if os.path.isdir(target_dir):
+                    self.console_cwd = target_dir
+                    self.log(f"Changed directory to {self.console_cwd}")
+                else:
+                    self.log(f"Error: Directory '{target_dir}' does not exist.")
+            else:
+                self.console_cwd = self.project_dir
+                self.log(f"Changed directory to {self.console_cwd}")
+        elif base == "pwd":
+            cwd = getattr(self, 'console_cwd', self.project_dir)
+            self.log(cwd)
         else:
-            self.run_background_task(cmd, self.project_dir)
+            # Default to console_cwd, otherwise use active file's directory, otherwise project_dir
+            if hasattr(self, 'console_cwd'):
+                exec_dir = self.console_cwd
+            else:
+                active_path = self.get_current_file_path()
+                exec_dir = os.path.dirname(active_path) if active_path else self.project_dir
+            self.run_background_task(cmd, exec_dir)
 
     def open_tree_menu(self, position):
         indexes = self.tree.selectedIndexes()
