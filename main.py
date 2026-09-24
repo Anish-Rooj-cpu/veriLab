@@ -189,7 +189,7 @@ class MainWindow(QMainWindow):
         self.save_act.triggered.connect(self.save_file)
 
         self.format_act = QAction("Format Code (Beautify)", self)
-        self.format_act.setShortcut("Ctrl+Shift+F")
+        self.format_act.setShortcut("Shift+Alt+F")
         self.format_act.triggered.connect(self.format_active_code)
 
         self.exit_act = QAction("Exit", self)
@@ -240,8 +240,6 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.add_design_act)
         toolbar.addAction(self.add_sim_act)
         toolbar.addSeparator()
-        toolbar.addAction(self.format_act)
-        toolbar.addSeparator()
         toolbar.addAction(self.sim_act)
         toolbar.addAction(self.synth_act)
         toolbar.addAction(self.wave_act)
@@ -291,6 +289,7 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(2, True)
         self.tree.setColumnHidden(3, True)
         self.tree.setSelectionMode(QTreeView.ExtendedSelection)
+        self.tree.setEditTriggers(QAbstractItemView.EditKeyPressed)
         self.tree.setStyleSheet("QTreeView { background-color: #21252B; color: #ABB2BF; border: none; font-size: 11pt; }"
                                 "QTreeView::item { padding: 4px; border-radius: 4px; }"
                                 "QTreeView::item:selected { background-color: #3E4451; color: #FFFFFF; }")
@@ -754,7 +753,7 @@ if __name__ == "__main__":
         QTabBar::tab {
             background: #21252B;
             color: #7F848E;
-            padding: 10px 24px;
+            padding: 8px 16px;
             border-top-left-radius: 6px;
             border-top-right-radius: 6px;
             border: none;
