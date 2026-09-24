@@ -342,7 +342,8 @@ class MainWindow(QMainWindow):
                 
             env = os.environ.copy()
             oss_bin = r"C:\oss-cad-suite\bin"
-            env["PATH"] = f"{oss_bin};" + env.get("PATH", "")
+            oss_lib = r"C:\oss-cad-suite\lib"
+            env["PATH"] = f"{oss_bin};{oss_lib};" + env.get("PATH", "")
             
             # Run iverilog syntax check only (-tnull)
             process = subprocess.Popen(f'iverilog -tnull "{temp_name}"', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, shell=True, env=env)
