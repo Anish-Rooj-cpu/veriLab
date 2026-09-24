@@ -220,6 +220,8 @@ class MainWindow(QMainWindow):
         edit_menu = menubar.addMenu("Edit")
         edit_menu.addAction(self.format_act)
 
+        self.view_menu = menubar.addMenu("View")
+
         run_menu = menubar.addMenu("Flow")
         run_menu.addAction(self.sim_act)
         run_menu.addAction(self.synth_act)
@@ -244,6 +246,7 @@ class MainWindow(QMainWindow):
     def create_dock_windows(self):
         self.console_dock = QDockWidget("Console Output", self)
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
+        self.console_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         self.console = ClickableConsole()
         self.console.setReadOnly(True)
         self.console.setFont(QFont("Consolas", 10))
@@ -254,6 +257,7 @@ class MainWindow(QMainWindow):
 
         self.explorer_dock = QDockWidget("Project Explorer", self)
         self.explorer_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.explorer_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         
         self.file_model = QFileSystemModel()
         self.file_model.setRootPath(self.project_dir)
@@ -269,6 +273,9 @@ class MainWindow(QMainWindow):
         
         self.explorer_dock.setWidget(self.tree)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.explorer_dock)
+
+        self.view_menu.addAction(self.explorer_dock.toggleViewAction())
+        self.view_menu.addAction(self.console_dock.toggleViewAction())
 
     def tree_double_clicked(self, index):
         path = self.file_model.filePath(index)
@@ -300,7 +307,7 @@ class MainWindow(QMainWindow):
     def create_editor(self, text="", title="Untitled"):
         editor = CodeEditor()
         editor.setPlainText(text)
-        highlighter = VerilogHighlighter(editor.document())
+        editor.highlighter = VerilogHighlighter(editor.document())
         
         # 5. Code Autocomplete
         keywords = ["always", "assign", "begin", "case", "casex", "casez", "default", "defparam", "else", "end", "endcase", "endmodule", "if", "inout", "input", "module", "output", "parameter", "reg", "wire", "initial", "integer"]
@@ -573,9 +580,66 @@ if __name__ == "__main__":
     dark_palette.setColor(QPalette.ButtonText, QColor(204, 204, 204))
     dark_palette.setColor(QPalette.BrightText, Qt.red)
     dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+    dark_palette.setColor(QPalette.Highlight, QColor(38, 79, 120))
+    dark_palette.setColor(QPalette.HighlightedText, QColor(255, 255, 255))
     app.setPalette(dark_palette)
+    
+    app.setStyleSheet("""
+        QTabWidget::pane { border: 1px solid #333333; }
+        QTabBar::tab {
+            background: #2D2D30;
+            color: #999999;
+            padding: 8px 20px;
+            border: 1px solid #333333;
+            border-bottom: none;
+        }
+        QTabBar::tab:selected {
+            background: #1E1E1E;
+            color: #FFFFFF;
+            border-top: 2px solid #007ACC;
+        }
+        QDockWidget {
+            color: #CCCCCC;
+            titlebar-close-icon: url(close.png);
+            titlebar-normal-icon: url(normal.png);
+        }
+        QDockWidget::title {
+            background: #2D2D30;
+            padding-left: 10px;
+            padding-top: 4px;
+        }
+        QMenuBar {
+            background-color: #2D2D30;
+            color: #CCCCCC;
+        }
+        QMenuBar::item:selected {
+            background-color: #3E3E42;
+        }
+        QMenu {
+            background-color: #1E1E1E;
+            color: #CCCCCC;
+            border: 1px solid #333333;
+        }
+        QMenu::item:selected {
+            background-color: #007ACC;
+        }
+        QToolBar {
+            background-color: #2D2D30;
+            border: none;
+            padding: 4px;
+        }
+    """)
+    
+    # Fix path for PyInstaller
+    import sys
+    import os
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    
+    app_icon = QIcon(os.path.join(base_path, "icon.png"))
+    app.setWindowIcon(app_icon)
     
     dialog = StartupDialog()
     if dialog.exec_() == QDialog.Accepted and dialog.project_dir:
