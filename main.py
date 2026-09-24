@@ -8,9 +8,9 @@ import shutil
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QAction, QFileDialog, 
                              QTabWidget, QDockWidget, QPlainTextEdit, QMessageBox,
                              QFileSystemModel, QTreeView, QVBoxLayout, QWidget, QSplitter,
-                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle)
-from PyQt5.QtCore import Qt, QProcess, QThread, pyqtSignal, QSize
-from PyQt5.QtGui import QIcon, QFont, QImage, QPainter, QColor, QPixmap
+                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle, QCompleter)
+from PyQt5.QtCore import Qt, QProcess, QThread, pyqtSignal, QSize, QTimer, QStringListModel
+from PyQt5.QtGui import QIcon, QFont, QImage, QPainter, QColor, QPixmap, QTextCursor
 from PyQt5.QtSvg import QSvgRenderer
 
 from code_editor import CodeEditor
@@ -100,6 +100,22 @@ class StartupDialog(QDialog):
             self.project_dir = dir_path
             self.accept()
 
+
+class ClickableConsole(QPlainTextEdit):
+    error_clicked = pyqtSignal(str, int) # filename, line_number
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        cursor = self.cursorForPosition(event.pos())
+        line_text = cursor.block().text()
+        
+        import re
+        # Match iverilog/yosys error lines like: dma_controller.v:45: syntax error
+        match = re.search(r'([^\\/]+\.(?:v|sv)):(\d+):', line_text)
+        if match:
+            filename = match.group(1)
+            line_num = int(match.group(2))
+            self.error_clicked.emit(filename, line_num)
 
 class MainWindow(QMainWindow):
     def __init__(self, project_dir):
@@ -218,10 +234,11 @@ class MainWindow(QMainWindow):
     def create_dock_windows(self):
         self.console_dock = QDockWidget("Console Output", self)
         self.console_dock.setAllowedAreas(Qt.BottomDockWidgetArea)
-        self.console = QPlainTextEdit()
+        self.console = ClickableConsole()
         self.console.setReadOnly(True)
         self.console.setFont(QFont("Consolas", 10))
         self.console.setStyleSheet("background-color: #FAFAFA; color: #111111; border: 1px solid #CCC;")
+        self.console.error_clicked.connect(self.jump_to_error)
         self.console_dock.setWidget(self.console)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.console_dock)
 
@@ -248,14 +265,84 @@ class MainWindow(QMainWindow):
         if os.path.isfile(path):
             self.load_file(path)
 
+    def jump_to_error(self, filename, line_num):
+        # Find the file in the project
+        target_path = None
+        for root, dirs, files in os.walk(self.project_dir):
+            if filename in files:
+                target_path = os.path.join(root, filename)
+                break
+                
+        if target_path:
+            self.load_file(target_path)
+            # Find the tab we just opened/activated
+            for i in range(self.tabs.count()):
+                if self.current_files.get(i, {}).get("path") == target_path:
+                    editor = self.tabs.widget(i)
+                    block = editor.document().findBlockByNumber(line_num - 1)
+                    if block.isValid():
+                        cursor = editor.textCursor()
+                        cursor.setPosition(block.position())
+                        editor.setTextCursor(cursor)
+                        editor.ensureCursorVisible()
+                    break
+
     def create_editor(self, text="", title="Untitled"):
         editor = CodeEditor()
         editor.setPlainText(text)
         highlighter = VerilogHighlighter(editor.document())
         
+        # 5. Code Autocomplete
+        keywords = ["always", "assign", "begin", "case", "casex", "casez", "default", "defparam", "else", "end", "endcase", "endmodule", "if", "inout", "input", "module", "output", "parameter", "reg", "wire", "initial", "integer"]
+        completer = QCompleter(keywords, self)
+        completer.setCaseSensitivity(Qt.CaseInsensitive)
+        editor.setCompleter(completer)
+        
+        # 1. Real-Time Syntax Checking
+        timer = QTimer(editor)
+        timer.setSingleShot(True)
+        timer.setInterval(750) # 750ms after typing stops
+        timer.timeout.connect(lambda: self.lint_code(editor))
+        editor.textChanged.connect(timer.start)
+        
         index = self.tabs.addTab(editor, title)
         self.tabs.setCurrentIndex(index)
         return index
+
+    def lint_code(self, editor):
+        # Only lint if we have Icarus Verilog in PATH or OSS CAD Suite
+        text = editor.toPlainText()
+        if not text.strip():
+            editor.setErrors([])
+            return
+            
+        import tempfile
+        import re
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".v", delete=False, mode="w", encoding="utf-8") as f:
+                f.write(text)
+                temp_name = f.name
+                
+            env = os.environ.copy()
+            oss_bin = r"C:\oss-cad-suite\bin"
+            env["PATH"] = f"{oss_bin};" + env.get("PATH", "")
+            
+            # Run iverilog syntax check only (-tnull)
+            process = subprocess.Popen(f'iverilog -tnull "{temp_name}"', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, shell=True, env=env)
+            out, _ = process.communicate()
+            
+            error_lines = []
+            # iverilog error format: file.v:line: error: ...
+            for line in out.splitlines():
+                match = re.search(r':(\d+):\s*(error|syntax error)', line, re.IGNORECASE)
+                if match:
+                    line_num = int(match.group(1)) - 1 # 0-indexed for editor
+                    error_lines.append(line_num)
+            
+            editor.setErrors(error_lines)
+            os.remove(temp_name)
+        except Exception as e:
+            pass # Ignore lint errors if tools missing
 
     def close_tab(self, index):
         if index in self.current_files:
