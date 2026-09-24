@@ -969,10 +969,21 @@ if __name__ == "__main__":
         QMainWindow {
             background-color: #21252B;
         }
+        QTabWidget {
+            border: none;
+        }
         QTabWidget::pane { 
-            border: 0;
-            border-top: 1px solid #21252B;
+            border: none;
             background-color: #282C34;
+        }
+        QTabBar {
+            border: none;
+            qproperty-drawBase: 0;
+            background: #21252B;
+        }
+        QTabBar::base {
+            border: none;
+            background: none;
         }
         QTabBar::tab {
             background: #21252B;
