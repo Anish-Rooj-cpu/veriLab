@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QAction, QFileDialog,
 from PyQt5.QtCore import Qt, QProcess, QThread, pyqtSignal, QSize
 from PyQt5.QtGui import QIcon, QFont, QImage, QPainter, QColor, QPixmap
 from PyQt5.QtSvg import QSvgRenderer
-import cairosvg
 
 from code_editor import CodeEditor
 from highlighter import VerilogHighlighter
@@ -28,33 +27,19 @@ class WorkerThread(QThread):
 
     def run(self):
         try:
+            env = os.environ.copy()
             oss_bin = r"C:\oss-cad-suite\bin"
             oss_lib = r"C:\oss-cad-suite\lib"
             graphviz_bin = r"C:\Program Files\Graphviz\bin"
             npm_global = os.path.join(os.environ.get("APPDATA", ""), "npm")
-            clean_path = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};C:\\Windows\\system32;C:\\Windows"
+            env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};C:\\Windows\\system32;C:\\Windows"
+            # Strip PyInstaller env vars that conflict with oss-cad-suite tools
+            for key in list(env.keys()):
+                if key in ("TCL_LIBRARY", "TK_LIBRARY") or key.startswith("QT_") or key.startswith("QML"):
+                    del env[key]
 
-            # Use PowerShell to launch the command in a fully isolated process.
-            # PyInstaller's bootloader calls SetDefaultDllDirectories/AddDllDirectory
-            # which poisons the DLL search order for ALL child processes (even with
-            # a clean env dict).  cmd.exe inherits this contamination, but
-            # powershell.exe creates an independent process tree that does not.
-            escaped_path = clean_path.replace("'", "''")
-            escaped_cwd = self.cwd.replace("'", "''")
-            escaped_cmd = self.cmd.replace("'", "''")
-            ps_script = (
-                f"$env:PATH = '{escaped_path}'; "
-                f"Set-Location -LiteralPath '{escaped_cwd}'; "
-                f"cmd /c '{escaped_cmd}'"
-            )
-
-            process = subprocess.Popen(
-                ["powershell.exe", "-NoProfile", "-NoLogo", "-Command", ps_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=self.cwd,
-            )
+            process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       text=True, cwd=self.cwd, shell=True, env=env)
             for line in process.stdout:
                 self.output_signal.emit(line.strip())
             process.wait()
@@ -423,8 +408,15 @@ class MainWindow(QMainWindow):
 
     def convert_svg_to_png(self, svg_path, png_path):
         try:
-            import cairosvg
-            cairosvg.svg2png(url=svg_path, write_to=png_path, background_color="white", scale=2.0)
+            renderer = QSvgRenderer(svg_path)
+            svg_size = renderer.defaultSize()
+            scale = 2.0
+            image = QImage(int(svg_size.width() * scale), int(svg_size.height() * scale), QImage.Format_ARGB32)
+            image.fill(QColor("white"))
+            painter = QPainter(image)
+            renderer.render(painter)
+            painter.end()
+            image.save(png_path, "PNG")
         except Exception as e:
             self.log(f"Error converting SVG to PNG: {e}")
 
@@ -444,11 +436,7 @@ class MainWindow(QMainWindow):
         env = os.environ.copy()
         oss_bin = r"C:\oss-cad-suite\bin"
         env["PATH"] = f"{oss_bin};" + env.get("PATH", "")
-        ps_cmd = f"$env:PATH = '{oss_bin};C:\\Windows\\system32;C:\\Windows'; gtkwave '{target}'"
-        subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-NoLogo", "-Command", ps_cmd],
-            cwd=sim_dir,
-        )
+        subprocess.Popen(f'gtkwave "{target}"', cwd=sim_dir, shell=True, env=env)
 
     def run_background_task(self, cmd, cwd, on_success=None):
         self.worker = WorkerThread(cmd, cwd)
