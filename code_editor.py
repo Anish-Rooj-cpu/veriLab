@@ -19,6 +19,7 @@ class CodeEditor(QPlainTextEdit):
         self.lineNumberArea = LineNumberArea(self)
         self._completer = None
         self._errors = set() # Set of line numbers (0-indexed) with errors
+        self.extra_cursors = []
 
         self.blockCountChanged.connect(self.updateLineNumberAreaWidth)
         self.updateRequest.connect(self.updateLineNumberArea)
@@ -96,6 +97,24 @@ class CodeEditor(QPlainTextEdit):
                 selection.cursor = cursor
                 extraSelections.append(selection)
 
+        # Draw extra cursors
+        for cursor in getattr(self, 'extra_cursors', []):
+            # Block highlight
+            selection = QTextEdit.ExtraSelection()
+            selection.format.setBackground(QColor("#2A2D2E"))
+            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
+            selection.cursor = cursor
+            selection.cursor.clearSelection()
+            extraSelections.append(selection)
+            
+            # Cursor tick mark (1 char inverted)
+            c_sel = QTextEdit.ExtraSelection()
+            c_sel.cursor = QTextCursor(cursor)
+            c_sel.cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor)
+            c_sel.format.setBackground(QColor("#D4D4D4"))
+            c_sel.format.setForeground(QColor("#1E1E1E"))
+            extraSelections.append(c_sel)
+
         self.setExtraSelections(extraSelections)
 
     def lineNumberAreaPaintEvent(self, event):
@@ -144,16 +163,67 @@ class CodeEditor(QPlainTextEdit):
         tc.select(QTextCursor.WordUnderCursor)
         return tc.selectedText()
 
+    def mousePressEvent(self, event):
+        if event.modifiers() == Qt.AltModifier:
+            cursor = self.cursorForPosition(event.pos())
+            self.extra_cursors.append(cursor)
+            self.highlightCurrentLine()
+            return
+        else:
+            if self.extra_cursors:
+                self.extra_cursors.clear()
+                self.highlightCurrentLine()
+            super().mousePressEvent(event)
+
     def focusInEvent(self, e):
         if self._completer:
             self._completer.setWidget(self)
         super().focusInEvent(e)
 
     def keyPressEvent(self, e):
+        # Monaco shortcuts
+        if e.modifiers() == (Qt.AltModifier | Qt.ShiftModifier):
+            if e.key() == Qt.Key_Up:
+                self.copy_line_up()
+                return
+            elif e.key() == Qt.Key_Down:
+                self.copy_line_down()
+                return
+        elif e.modifiers() == Qt.AltModifier:
+            if e.key() == Qt.Key_Up:
+                self.move_line_up()
+                return
+            elif e.key() == Qt.Key_Down:
+                self.move_line_down()
+                return
+
         if self._completer and self._completer.popup().isVisible():
             if e.key() in (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab):
                 e.ignore()
                 return
+
+        # Multiple cursors typing
+        if self.extra_cursors:
+            if e.key() in (Qt.Key_Up, Qt.Key_Down, Qt.Key_Left, Qt.Key_Right) and not e.modifiers() & Qt.ShiftModifier:
+                self.extra_cursors.clear()
+                self.highlightCurrentLine()
+            elif e.text() or e.key() in (Qt.Key_Backspace, Qt.Key_Delete, Qt.Key_Return, Qt.Key_Enter):
+                main_cursor = self.textCursor()
+                main_cursor.beginEditBlock()
+                
+                # type at extra cursors
+                for cursor in self.extra_cursors:
+                    if e.key() == Qt.Key_Backspace:
+                        cursor.deletePreviousChar()
+                    elif e.key() == Qt.Key_Delete:
+                        cursor.deleteChar()
+                    elif e.key() in (Qt.Key_Return, Qt.Key_Enter):
+                        cursor.insertText('\n')
+                    elif e.text():
+                        cursor.insertText(e.text())
+                        
+                main_cursor.endEditBlock()
+                self.highlightCurrentLine()
 
         isShortcut = ((e.modifiers() & Qt.ControlModifier) and e.key() == Qt.Key_Space)
         if not self._completer or not isShortcut:
@@ -177,3 +247,64 @@ class CodeEditor(QPlainTextEdit):
         cr = self.cursorRect()
         cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
         self._completer.complete(cr)
+
+    def copy_line_up(self):
+        cursor = self.textCursor()
+        cursor.beginEditBlock()
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        line_text = cursor.selectedText()
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.insertText(line_text + '\n')
+        cursor.movePosition(QTextCursor.PreviousBlock)
+        cursor.endEditBlock()
+        self.setTextCursor(cursor)
+
+    def copy_line_down(self):
+        cursor = self.textCursor()
+        cursor.beginEditBlock()
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        line_text = cursor.selectedText()
+        cursor.movePosition(QTextCursor.EndOfBlock)
+        cursor.insertText('\n' + line_text)
+        cursor.endEditBlock()
+        self.setTextCursor(cursor)
+
+    def move_line_up(self):
+        cursor = self.textCursor()
+        if cursor.blockNumber() == 0:
+            return
+        cursor.beginEditBlock()
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        cursor.movePosition(QTextCursor.NextCharacter, QTextCursor.KeepAnchor) # get the newline
+        line_text = cursor.selectedText()
+        cursor.removeSelectedText()
+        cursor.movePosition(QTextCursor.PreviousBlock)
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.insertText(line_text)
+        cursor.movePosition(QTextCursor.PreviousBlock)
+        cursor.endEditBlock()
+        self.setTextCursor(cursor)
+
+    def move_line_down(self):
+        cursor = self.textCursor()
+        if cursor.blockNumber() == self.blockCount() - 1:
+            return
+        cursor.beginEditBlock()
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+        line_text = cursor.selectedText()
+        
+        # Remove current line
+        cursor.movePosition(QTextCursor.StartOfBlock)
+        cursor.movePosition(QTextCursor.NextBlock, QTextCursor.KeepAnchor)
+        cursor.removeSelectedText()
+        
+        # Insert after next line
+        cursor.movePosition(QTextCursor.EndOfBlock)
+        cursor.insertText('\n' + line_text)
+        cursor.endEditBlock()
+        self.setTextCursor(cursor)
+

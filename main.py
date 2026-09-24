@@ -278,6 +278,7 @@ class MainWindow(QMainWindow):
         
         self.file_model = QFileSystemModel()
         self.file_model.setRootPath(self.project_dir)
+        self.file_model.setReadOnly(False)
         
         self.tree = QTreeView()
         self.tree.setModel(self.file_model)
@@ -287,6 +288,9 @@ class MainWindow(QMainWindow):
         self.tree.setColumnHidden(2, True)
         self.tree.setColumnHidden(3, True)
         self.tree.setStyleSheet("background-color: #252526; color: #CCCCCC; border: none; alternate-background-color: #2D2D30;")
+        
+        self.tree.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self.open_tree_menu)
         
         self.explorer_dock.setWidget(self.tree)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.explorer_dock)
@@ -325,6 +329,54 @@ class MainWindow(QMainWindow):
             self.log("Any other command will be executed as a system shell command in the project directory.")
         else:
             self.run_background_task(cmd, self.project_dir)
+
+    def open_tree_menu(self, position):
+        indexes = self.tree.selectedIndexes()
+        if not indexes:
+            return
+        index = indexes[0]
+        path = self.file_model.filePath(index)
+        is_dir = os.path.isdir(path)
+        
+        from PyQt5.QtWidgets import QMenu
+        menu = QMenu()
+        
+        new_file_act = menu.addAction("New File") if is_dir else None
+        rename_act = menu.addAction("Rename")
+        delete_act = menu.addAction("Delete")
+        
+        action = menu.exec_(self.tree.viewport().mapToGlobal(position))
+        
+        if action and action == new_file_act:
+            self.create_new_file_in_tree(path)
+        elif action == rename_act:
+            self.tree.edit(index)
+        elif action == delete_act:
+            self.delete_file_in_tree(path)
+
+    def create_new_file_in_tree(self, dir_path):
+        from PyQt5.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "New File", "Enter file name:")
+        if ok and name:
+            new_path = os.path.join(dir_path, name)
+            try:
+                open(new_path, 'w').close()
+            except Exception as e:
+                QMessageBox.warning(self, "Error", str(e))
+
+    def delete_file_in_tree(self, path):
+        reply = QMessageBox.question(self, "Confirm Delete", 
+                                     f"Are you sure you want to delete {os.path.basename(path)}?",
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            try:
+                if os.path.isdir(path):
+                    import shutil
+                    shutil.rmtree(path)
+                else:
+                    os.remove(path)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", str(e))
 
     def tree_double_clicked(self, index):
         path = self.file_model.filePath(index)
