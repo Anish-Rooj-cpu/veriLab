@@ -8,7 +8,7 @@ import shutil
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QAction, QFileDialog, 
                              QTabWidget, QDockWidget, QPlainTextEdit, QMessageBox,
                              QFileSystemModel, QTreeView, QVBoxLayout, QWidget, QSplitter,
-                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle, QCompleter, QLineEdit)
+                             QDialog, QPushButton, QLabel, QHBoxLayout, QStyle, QCompleter, QLineEdit, QAbstractItemView)
 from PyQt5.QtCore import Qt, QProcess, QThread, pyqtSignal, QSize, QTimer, QStringListModel
 from PyQt5.QtGui import QIcon, QFont, QImage, QPainter, QColor, QPixmap, QTextCursor
 from PyQt5.QtSvg import QSvgRenderer
