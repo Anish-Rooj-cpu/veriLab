@@ -49,12 +49,10 @@ class WorkerThread(QThread):
 
     def run(self):
         try:
+            import downloader
             env = os.environ.copy()
-            oss_bin = r"C:\oss-cad-suite\bin"
-            oss_lib = r"C:\oss-cad-suite\lib"
-            graphviz_bin = r"C:\Program Files\Graphviz\bin"
-            npm_global = os.path.join(os.environ.get("APPDATA", ""), "npm")
-            env["PATH"] = f"{oss_bin};{oss_lib};{graphviz_bin};{npm_global};" + env.get("PATH", "")
+            local_paths = downloader.get_env_paths()
+            env["PATH"] = local_paths + env.get("PATH", "")
             # Strip PyInstaller env vars that conflict with oss-cad-suite tools
             for key in list(env.keys()):
                 if key in ("TCL_LIBRARY", "TK_LIBRARY") or key.startswith("QT_") or key.startswith("QML"):
@@ -636,10 +634,9 @@ class MainWindow(QMainWindow):
                 f.write(text)
                 temp_name = f.name
                 
+            import downloader
             env = os.environ.copy()
-            oss_bin = r"C:\oss-cad-suite\bin"
-            oss_lib = r"C:\oss-cad-suite\lib"
-            env["PATH"] = f"{oss_bin};{oss_lib};" + env.get("PATH", "")
+            env["PATH"] = downloader.get_env_paths() + env.get("PATH", "")
             
             # Find the path of the current editor to exclude it from the global list
             index = self.tabs.indexOf(editor)
@@ -948,10 +945,9 @@ class MainWindow(QMainWindow):
         
         self.log(f"--- Opening {vcd_files[0]} in GTKWave ---")
         
+        import downloader
         env = os.environ.copy()
-        oss_bin = r"C:\oss-cad-suite\bin"
-        oss_lib = r"C:\oss-cad-suite\lib"
-        env["PATH"] = f"{oss_bin};{oss_lib};" + env.get("PATH", "")
+        env["PATH"] = downloader.get_env_paths() + env.get("PATH", "")
         subprocess.Popen(f'gtkwave "{target}"', cwd=sim_dir, shell=True, env=env)
 
     def run_background_task(self, cmd, cwd, on_success=None):
@@ -1129,6 +1125,13 @@ if __name__ == "__main__":
     app_icon = QIcon(os.path.join(base_path, "icon.png"))
     app.setWindowIcon(app_icon)
     
+    import downloader
+    if not downloader.check_dependencies():
+        dl_dialog = downloader.DownloadDialog(downloader.get_tools_dir())
+        dl_dialog.start()
+        if dl_dialog.exec_() != QDialog.Accepted:
+            sys.exit(0)
+            
     dialog = StartupDialog()
     if dialog.exec_() == QDialog.Accepted and dialog.project_dir:
         window = MainWindow(dialog.project_dir)
