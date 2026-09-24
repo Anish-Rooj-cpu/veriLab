@@ -37,6 +37,9 @@ class WorkerThread(QThread):
                 del env["TCL_LIBRARY"]
             if "TK_LIBRARY" in env:
                 del env["TK_LIBRARY"]
+            for key in list(env.keys()):
+                if key.startswith("QT_") or key.startswith("QML"):
+                    del env[key]
 
             process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                        text=True, cwd=self.cwd, shell=True, env=env)
