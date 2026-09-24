@@ -446,17 +446,34 @@ class MainWindow(QMainWindow):
             oss_lib = r"C:\oss-cad-suite\lib"
             env["PATH"] = f"{oss_bin};{oss_lib};" + env.get("PATH", "")
             
+            # Find the path of the current editor to exclude it from the global list
+            index = self.tabs.indexOf(editor)
+            current_path = self.current_files.get(index, {}).get("path")
+            
+            # Load all other design/sim files so modules resolve without includes
+            other_files = []
+            for d in [os.path.join(self.project_dir, "sources"), os.path.join(self.project_dir, "simulations")]:
+                if os.path.exists(d):
+                    for f in glob.glob(os.path.join(d, "*.v")) + glob.glob(os.path.join(d, "*.sv")):
+                        # Normalize paths to properly compare and exclude the currently edited file
+                        if not current_path or os.path.normpath(f) != os.path.normpath(current_path):
+                            other_files.append(f)
+                            
+            other_files_str = " ".join([f'"{f}"' for f in other_files])
+            
             # Run iverilog syntax check only (-tnull)
-            process = subprocess.Popen(f'iverilog -tnull "{temp_name}"', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, shell=True, env=env)
+            process = subprocess.Popen(f'iverilog -tnull {other_files_str} "{temp_name}"', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, shell=True, env=env)
             out, _ = process.communicate()
             
             error_lines = []
+            temp_basename = os.path.basename(temp_name)
             # iverilog error format: file.v:line: error: ...
             for line in out.splitlines():
-                match = re.search(r':(\d+):\s*(error|syntax error)', line, re.IGNORECASE)
-                if match:
-                    line_num = int(match.group(1)) - 1 # 0-indexed for editor
-                    error_lines.append(line_num)
+                if temp_basename in line:
+                    match = re.search(r':(\d+):\s*(error|syntax error|warning)', line, re.IGNORECASE)
+                    if match:
+                        line_num = int(match.group(1)) - 1 # 0-indexed for editor
+                        error_lines.append(line_num)
             
             editor.setErrors(error_lines)
             os.remove(temp_name)
@@ -621,7 +638,24 @@ class MainWindow(QMainWindow):
         
         self.log(f"--- Starting Synthesis Flow for {filename} ---")
         
-        script = f"read_verilog {path}; hierarchy -auto-top; proc; opt; tribuf -logic; opt; write_json synth_diagram.json"
+        # Find the top module name from the current file
+        editor = self.tabs.widget(self.tabs.currentIndex())
+        code = editor.toPlainText()
+        import re
+        match = re.search(r'\bmodule\s+([a-zA-Z_0-9]+)', code)
+        if not match:
+            self.log(f"Error: Could not find a 'module' declaration in {filename}.")
+            return
+        top_module = match.group(1)
+        self.log(f"Detected top module: {top_module}")
+        
+        # Load all design sources so includes aren't strictly necessary
+        src_dir = os.path.join(self.project_dir, "sources")
+        design_files = glob.glob(os.path.join(src_dir, "*.v")) + glob.glob(os.path.join(src_dir, "*.sv"))
+        read_cmds = " ".join([f'read_verilog -overwrite "{f.replace(os.sep, "/")}";' for f in design_files])
+        
+        # flatten expands all submodules into the top module
+        script = f"{read_cmds} hierarchy -top {top_module}; flatten; proc; opt; tribuf -logic; opt; write_json synth_diagram.json"
         cmd = f'yosys -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
         
         self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
