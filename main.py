@@ -907,10 +907,14 @@ class MainWindow(QMainWindow):
         read_cmds = " ".join([f'read_verilog -overwrite "{f.replace(os.sep, "/")}";' for f in design_files])
         
         # prep (without flatten) preserves memory blocks and sub-modules as clean hierarchical boxes
-        script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; stat; write_json synth_diagram.json"
+        
+        json_file = f"{top_module}_synth.json"
+        svg_file = f"{top_module}_schematic.svg"
+        
+        script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; stat; write_json {json_file}"
         
         # We must manually invoke node with a high stack size to prevent netlistsvg from crashing on complex graphs
-        netlistsvg_cmd = "netlistsvg synth_diagram.json -o synth_diagram.svg"
+        netlistsvg_cmd = f"netlistsvg {json_file} -o {svg_file}"
         try:
             import subprocess, shutil
             # We must use the correct env to resolve the npm root (either local or global)
@@ -931,13 +935,13 @@ class MainWindow(QMainWindow):
             
             if os.path.exists(js_path):
                 # Ensure path is quoted in case of spaces
-                netlistsvg_cmd = f'node --stack-size=65536 "{js_path}" synth_diagram.json -o synth_diagram.svg'
+                netlistsvg_cmd = f'node --stack-size=65536 "{js_path}" {json_file} -o {svg_file}'
         except Exception as e:
             self.log(f"Debug: npm root check failed: {e}")
             
         cmd = f'yosys -l synth.log -p "{script}" && {netlistsvg_cmd}'
         
-        self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
+        self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir, svg_file))
 
     def parse_synth_stats(self, log_path):
         if not os.path.exists(log_path):
@@ -980,8 +984,8 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-    def post_synthesize(self, synth_dir):
-        svg_path = os.path.join(synth_dir, "synth_diagram.svg")
+    def post_synthesize(self, synth_dir, svg_filename="synth_diagram.svg"):
+        svg_path = os.path.join(synth_dir, svg_filename)
         log_path = os.path.join(synth_dir, "synth.log")
         self.parse_synth_stats(log_path)
         if os.path.exists(svg_path):
