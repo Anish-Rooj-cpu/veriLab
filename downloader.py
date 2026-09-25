@@ -44,6 +44,13 @@ def get_tools_dir():
     return os.path.join(appdata, "VeriLab", "tools")
 
 def check_dependencies():
+    import shutil
+    
+    # 1. First, check if the user already has them installed globally on their system PATH
+    if shutil.which("yosys") and shutil.which("iverilog") and shutil.which("netlistsvg"):
+        return True
+        
+    # 2. Otherwise, check our isolated tools directory
     tools_dir = get_tools_dir()
     yosys_path = os.path.join(tools_dir, "oss-cad-suite", "bin", "yosys.exe")
     node_path = os.path.join(tools_dir, "node", "node.exe")
