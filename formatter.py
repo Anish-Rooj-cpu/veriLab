@@ -14,14 +14,14 @@ def format_verilog(code):
         s = line.strip()
         
         if in_comment:
-            formatted.append(('    ' * indent) + s)
+            formatted.append(('  ' * indent) + s)
             if '*/' in s:
                 in_comment = False
             continue
             
         if s.startswith('/*') and '*/' not in s:
             in_comment = True
-            formatted.append(('    ' * indent) + s)
+            formatted.append(('  ' * indent) + s)
             continue
             
         code_part = s
@@ -45,7 +45,7 @@ def format_verilog(code):
             if temp_indent < 0: temp_indent = 0
             
         if s:
-            formatted.append(('    ' * temp_indent) + s)
+            formatted.append(('  ' * temp_indent) + s)
         else:
             formatted.append('')
             

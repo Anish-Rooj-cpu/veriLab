@@ -711,9 +711,7 @@ class MainWindow(QMainWindow):
         
         # 5. Code Autocomplete
         keywords = ["always", "assign", "begin", "case", "casex", "casez", "default", "defparam", "else", "end", "endcase", "endmodule", "if", "inout", "input", "module", "output", "parameter", "reg", "wire", "initial", "integer"]
-        completer = QCompleter(keywords, self)
-        completer.setCaseSensitivity(Qt.CaseInsensitive)
-        editor.setCompleter(completer)
+
         
         # 1. Real-Time Syntax Checking
         timer = QTimer(editor)

@@ -38,6 +38,14 @@ class CodeEditor(QPlainTextEdit):
 
         font = QFont("Consolas", 13)
         self.setFont(font)
+        # Set tab size to 2 spaces
+        try:
+            # PyQt5 newer
+            self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * 2)
+        except AttributeError:
+            # PyQt5 older fallback
+            self.setTabStopWidth(self.fontMetrics().width(' ') * 2)
+        self.setFont(font)
         
         self.setStyleSheet("""
             QPlainTextEdit {
@@ -221,30 +229,7 @@ class CodeEditor(QPlainTextEdit):
             
         self.document().markContentsDirty(start_block.position(), block.position() - start_block.position() if block.isValid() else self.document().characterCount())
 
-    def setCompleter(self, completer):
-        if self._completer:
-            self._completer.disconnect(self)
-        self._completer = completer
-        if not self._completer:
-            return
-        self._completer.setWidget(self)
-        self._completer.setCompletionMode(QCompleter.PopupCompletion)
-        self._completer.activated.connect(self.insertCompletion)
 
-    def insertCompletion(self, completion):
-        if self._completer.widget() is not self:
-            return
-        tc = self.textCursor()
-        extra = len(completion) - len(self._completer.completionPrefix())
-        tc.movePosition(QTextCursor.Left)
-        tc.movePosition(QTextCursor.EndOfWord)
-        tc.insertText(completion[-extra:])
-        self.setTextCursor(tc)
-
-    def textUnderCursor(self):
-        tc = self.textCursor()
-        tc.select(QTextCursor.WordUnderCursor)
-        return tc.selectedText()
 
     def mousePressEvent(self, event):
         if event.modifiers() == Qt.AltModifier:
@@ -259,8 +244,6 @@ class CodeEditor(QPlainTextEdit):
             super().mousePressEvent(event)
 
     def focusInEvent(self, e):
-        if self._completer:
-            self._completer.setWidget(self)
         super().focusInEvent(e)
 
     def keyPressEvent(self, e):
@@ -278,11 +261,6 @@ class CodeEditor(QPlainTextEdit):
                 return
             elif e.key() == Qt.Key_Down:
                 self.move_line_down()
-                return
-
-        if self._completer and self._completer.popup().isVisible():
-            if e.key() in (Qt.Key_Enter, Qt.Key_Return, Qt.Key_Escape, Qt.Key_Tab, Qt.Key_Backtab):
-                e.ignore()
                 return
 
         # Multiple cursors typing
@@ -308,28 +286,7 @@ class CodeEditor(QPlainTextEdit):
                 main_cursor.endEditBlock()
                 self.highlightCurrentLine()
 
-        isShortcut = ((e.modifiers() & Qt.ControlModifier) and e.key() == Qt.Key_Space)
-        if not self._completer or not isShortcut:
-            super().keyPressEvent(e)
-
-        ctrlOrShift = e.modifiers() & (Qt.ControlModifier | Qt.ShiftModifier)
-        if not self._completer or (ctrlOrShift and e.text() == ''):
-            return
-
-        hasModifier = (e.modifiers() != Qt.NoModifier) and not ctrlOrShift
-        completionPrefix = self.textUnderCursor()
-
-        if not isShortcut and (hasModifier or e.text() == '' or len(completionPrefix) < 2):
-            self._completer.popup().hide()
-            return
-
-        if completionPrefix != self._completer.completionPrefix():
-            self._completer.setCompletionPrefix(completionPrefix)
-            self._completer.popup().setCurrentIndex(self._completer.completionModel().index(0, 0))
-
-        cr = self.cursorRect()
-        cr.setWidth(self._completer.popup().sizeHintForColumn(0) + self._completer.popup().verticalScrollBar().sizeHint().width())
-        self._completer.complete(cr)
+        super().keyPressEvent(e)
 
     def copy_line_up(self):
         cursor = self.textCursor()
