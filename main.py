@@ -18,7 +18,7 @@ from highlighter import VerilogHighlighter
 import formatter
 import icons
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 class UpdateCheckerThread(QThread):
     update_available = pyqtSignal(str, str)
