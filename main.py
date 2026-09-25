@@ -926,14 +926,14 @@ class MainWindow(QMainWindow):
                 local_paths += ";".join(global_paths) + ";"
             env["PATH"] = local_paths + env.get("PATH", "")
             
-            npm_root = subprocess.check_output(["npm", "root", "-g"], env=env, text=True, creationflags=subprocess.CREATE_NO_WINDOW).strip()
+            npm_root = subprocess.check_output("npm root -g", shell=True, env=env, text=True, creationflags=subprocess.CREATE_NO_WINDOW).strip()
             js_path = os.path.join(npm_root, "netlistsvg", "bin", "netlistsvg.js")
             
             if os.path.exists(js_path):
                 # Ensure path is quoted in case of spaces
                 netlistsvg_cmd = f'node --stack-size=65536 "{js_path}" synth_diagram.json -o synth_diagram.svg'
         except Exception as e:
-            pass
+            self.log(f"Debug: npm root check failed: {e}")
             
         cmd = f'yosys -l synth.log -p "{script}" && {netlistsvg_cmd}'
         
