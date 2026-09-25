@@ -52,7 +52,17 @@ class WorkerThread(QThread):
             import downloader
             import shutil
             import os
+            import sys
+            
             env = os.environ.copy()
+            
+            # CRITICAL FIX for 0xC0000139: Strip PyInstaller's bundled DLL directory from PATH 
+            # so Yosys doesn't load the incompatible Python libffi-8.dll
+            meipass = getattr(sys, '_MEIPASS', None)
+            if meipass:
+                path_parts = env.get('PATH', '').split(os.pathsep)
+                path_parts = [p for p in path_parts if p and os.path.normpath(p) != os.path.normpath(meipass)]
+                env['PATH'] = os.pathsep.join(path_parts)
             
             local_paths = downloader.get_env_paths()
             
@@ -60,7 +70,13 @@ class WorkerThread(QThread):
             for tool in ["yosys", "iverilog", "node"]:
                 tool_path = shutil.which(tool)
                 if tool_path:
-                    global_paths.append(os.path.dirname(tool_path))
+                    tool_dir = os.path.dirname(tool_path)
+                    global_paths.append(tool_dir)
+                    # For OSS CAD Suite, also ensure the 'lib' directory is available
+                    if tool_dir.endswith("bin"):
+                        lib_dir = os.path.join(os.path.dirname(tool_dir), "lib")
+                        if os.path.exists(lib_dir):
+                            global_paths.append(lib_dir)
             
             if global_paths:
                 local_paths += ";".join(global_paths) + ";"
