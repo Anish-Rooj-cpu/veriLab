@@ -5,6 +5,7 @@ import urllib.request
 import tarfile
 import zipfile
 import subprocess
+import shutil
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QProgressBar, QApplication, QPushButton, QLineEdit, QFileDialog, QCheckBox)
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
@@ -32,20 +33,25 @@ def save_settings(settings):
     with open(path, 'w') as f:
         json.dump(settings, f)
 
-def get_tools_dir():
+def get_install_dir():
     settings = load_settings()
-    if "tools_dir" in settings and settings["tools_dir"]:
-        return settings["tools_dir"]
+    if "install_dir" in settings and settings["install_dir"]:
+        return settings["install_dir"]
     
     # Default
     appdata = os.environ.get("LOCALAPPDATA", os.environ.get("APPDATA"))
     if not appdata:
         appdata = os.path.expanduser("~")
-    return os.path.join(appdata, "VeriLab", "tools")
+    return os.path.join(appdata, "VeriLab")
+
+def get_tools_dir():
+    settings = load_settings()
+    # Legacy fallback if they previously installed tools without install_dir
+    if "tools_dir" in settings and settings["tools_dir"]:
+        return settings["tools_dir"]
+    return os.path.join(get_install_dir(), "tools")
 
 def check_dependencies():
-    import shutil
-    
     # 1. First, check if the user already has them installed globally on their system PATH
     if shutil.which("yosys") and shutil.which("iverilog") and shutil.which("netlistsvg"):
         return True
@@ -65,24 +71,18 @@ def get_env_paths():
     node_dir = os.path.join(tools_dir, "node")
     return f"{oss_bin};{oss_lib};{node_dir};"
 
-def create_desktop_shortcut():
+def create_desktop_shortcut(target_exe):
     try:
         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
         shortcut_path = os.path.join(desktop, "VeriLab.lnk")
         
-        # Get path to current executable
-        if getattr(sys, 'frozen', False):
-            target = sys.executable
-        else:
-            target = os.path.abspath(sys.argv[0])
-            
         vbs_script = os.path.join(os.environ.get('TEMP', ''), 'create_shortcut.vbs')
         with open(vbs_script, 'w') as f:
             f.write(f'''
 Set oWS = WScript.CreateObject("WScript.Shell")
 sLinkFile = "{shortcut_path}"
 Set oLink = oWS.CreateShortcut(sLinkFile)
-oLink.TargetPath = "{target}"
+oLink.TargetPath = "{target_exe}"
 oLink.Save
 ''')
         subprocess.run(['cscript', '//nologo', vbs_script], creationflags=subprocess.CREATE_NO_WINDOW)
@@ -176,7 +176,7 @@ class DownloaderThread(QThread):
                         self.progress.emit(prog, f"Downloading... ({downloaded//1024//1024}MB / {total_size//1024//1024}MB)")
 
 class DownloadDialog(QDialog):
-    def __init__(self, default_tools_dir, parent=None):
+    def __init__(self, default_install_dir, parent=None):
         super().__init__(parent)
         self.setWindowTitle("VeriLab Setup")
         self.setFixedSize(500, 220)
@@ -190,7 +190,7 @@ class DownloadDialog(QDialog):
         # Path selection
         path_layout = QHBoxLayout()
         self.path_input = QLineEdit()
-        self.path_input.setText(default_tools_dir)
+        self.path_input.setText(default_install_dir)
         self.browse_btn = QPushButton("Browse...")
         self.browse_btn.clicked.connect(self.browse_path)
         path_layout.addWidget(QLabel("Install path:"))
@@ -207,7 +207,7 @@ class DownloadDialog(QDialog):
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
         
-        self.install_btn = QPushButton("Install Tools")
+        self.install_btn = QPushButton("Install")
         self.install_btn.clicked.connect(self.start_install)
         layout.addWidget(self.install_btn)
         
@@ -219,11 +219,13 @@ class DownloadDialog(QDialog):
             self.path_input.setText(dir_path)
             
     def start_install(self):
-        tools_dir = self.path_input.text().strip()
+        install_dir = self.path_input.text().strip()
         
         # Save settings
         settings = load_settings()
-        settings["tools_dir"] = tools_dir
+        settings["install_dir"] = install_dir
+        if "tools_dir" in settings:
+            del settings["tools_dir"]
         save_settings(settings)
         
         self.path_input.setEnabled(False)
@@ -231,6 +233,7 @@ class DownloadDialog(QDialog):
         self.install_btn.setEnabled(False)
         self.shortcut_checkbox.setEnabled(False)
         
+        tools_dir = os.path.join(install_dir, "tools")
         self.thread = DownloaderThread(tools_dir)
         self.thread.progress.connect(self.update_progress)
         self.thread.finished.connect(self.on_finished)
@@ -242,8 +245,24 @@ class DownloadDialog(QDialog):
         
     def on_finished(self, success, msg):
         if success:
+            install_dir = self.path_input.text().strip()
+            
+            # Copy the executable to the install directory
+            target_exe = os.path.join(install_dir, "verilab.exe")
+            current_exe = sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(sys.argv[0])
+            
+            exe_to_link = current_exe
+            try:
+                # Don't copy if it's already there
+                if os.path.abspath(current_exe) != os.path.abspath(target_exe):
+                    shutil.copy2(current_exe, target_exe)
+                exe_to_link = target_exe
+            except Exception as e:
+                print(f"Could not copy exe to {target_exe}: {e}")
+                
             if self.shortcut_checkbox.isChecked():
-                create_desktop_shortcut()
+                create_desktop_shortcut(exe_to_link)
+                
             self.accept()
         else:
             from PyQt5.QtWidgets import QMessageBox

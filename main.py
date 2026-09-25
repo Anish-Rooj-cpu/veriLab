@@ -1129,7 +1129,7 @@ if __name__ == "__main__":
     
     import downloader
     if not downloader.check_dependencies():
-        dl_dialog = downloader.DownloadDialog(downloader.get_tools_dir())
+        dl_dialog = downloader.DownloadDialog(downloader.get_install_dir())
         if dl_dialog.exec_() != QDialog.Accepted:
             sys.exit(0)
             
