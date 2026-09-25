@@ -27,7 +27,7 @@ class UpdateCheckerThread(QThread):
         import urllib.request
         import json
         try:
-            url = "https://api.github.com/repos/Anish-Rooj-cpu/verilog-studio/releases/latest"
+            url = "https://api.github.com/repos/Anish-Rooj-cpu/veriLab/releases/latest"
             req = urllib.request.Request(url, headers={'User-Agent': 'VeriLab-App'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
@@ -908,7 +908,34 @@ class MainWindow(QMainWindow):
         
         # prep (without flatten) preserves memory blocks and sub-modules as clean hierarchical boxes
         script = f"{read_cmds} prep -top {top_module}; tribuf -logic; opt; stat; write_json synth_diagram.json"
-        cmd = f'yosys -l synth.log -p "{script}" && netlistsvg synth_diagram.json -o synth_diagram.svg'
+        
+        # We must manually invoke node with a high stack size to prevent netlistsvg from crashing on complex graphs
+        netlistsvg_cmd = "netlistsvg synth_diagram.json -o synth_diagram.svg"
+        try:
+            import subprocess, shutil
+            # We must use the correct env to resolve the npm root (either local or global)
+            import downloader
+            env = os.environ.copy()
+            local_paths = downloader.get_env_paths()
+            global_paths = []
+            for tool in ["yosys", "iverilog", "node", "npm"]:
+                tool_path = shutil.which(tool)
+                if tool_path:
+                    global_paths.append(os.path.dirname(tool_path))
+            if global_paths:
+                local_paths += ";".join(global_paths) + ";"
+            env["PATH"] = local_paths + env.get("PATH", "")
+            
+            npm_root = subprocess.check_output(["npm", "root", "-g"], env=env, text=True, creationflags=subprocess.CREATE_NO_WINDOW).strip()
+            js_path = os.path.join(npm_root, "netlistsvg", "bin", "netlistsvg.js")
+            
+            if os.path.exists(js_path):
+                # Ensure path is quoted in case of spaces
+                netlistsvg_cmd = f'node --stack-size=65536 "{js_path}" synth_diagram.json -o synth_diagram.svg'
+        except Exception as e:
+            pass
+            
+        cmd = f'yosys -l synth.log -p "{script}" && {netlistsvg_cmd}'
         
         self.run_background_task(cmd, synth_dir, on_success=lambda: self.post_synthesize(synth_dir))
 
