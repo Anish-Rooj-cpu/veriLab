@@ -50,15 +50,29 @@ class WorkerThread(QThread):
     def run(self):
         try:
             import downloader
+            import shutil
+            import os
             env = os.environ.copy()
+            
             local_paths = downloader.get_env_paths()
+            
+            global_paths = []
+            for tool in ["yosys", "iverilog", "node"]:
+                tool_path = shutil.which(tool)
+                if tool_path:
+                    global_paths.append(os.path.dirname(tool_path))
+            
+            if global_paths:
+                local_paths += ";".join(global_paths) + ";"
+                
             env["PATH"] = local_paths + env.get("PATH", "")
-            # Strip PyInstaller env vars that conflict with oss-cad-suite tools
+            
             for key in list(env.keys()):
                 if key in ("TCL_LIBRARY", "TK_LIBRARY") or key.startswith("QT_") or key.startswith("QML"):
                     del env[key]
-                    
-            env["NODE_OPTIONS"] = "--stack-size=65536"
+            
+            if "NODE_OPTIONS" in env:
+                del env["NODE_OPTIONS"]
 
             process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                        text=True, cwd=self.cwd, shell=True, env=env)
