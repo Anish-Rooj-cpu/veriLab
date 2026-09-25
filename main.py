@@ -100,6 +100,74 @@ class WorkerThread(QThread):
             self.output_signal.emit(f"Error: {str(e)}")
             self.finished_signal.emit(-1)
 
+class NewProjectDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Create New Project")
+        self.setFixedSize(500, 200)
+        if parent:
+            self.setStyleSheet(parent.styleSheet() + " QLineEdit { background-color: #282C34; color: #ABB2BF; border: 1px solid #3E4451; border-radius: 4px; padding: 5px; font-size: 11pt; }")
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(15)
+        
+        name_layout = QHBoxLayout()
+        name_label = QLabel("Project Name:")
+        name_label.setFixedWidth(110)
+        self.name_input = QLineEdit("project_1")
+        name_layout.addWidget(name_label)
+        name_layout.addWidget(self.name_input)
+        layout.addLayout(name_layout)
+        
+        loc_layout = QHBoxLayout()
+        loc_label = QLabel("Project Location:")
+        loc_label.setFixedWidth(110)
+        self.loc_input = QLineEdit(os.path.expanduser("~").replace("\\", "/"))
+        self.browse_btn = QPushButton("Browse...")
+        self.browse_btn.setMinimumHeight(30)
+        self.browse_btn.clicked.connect(self.browse)
+        loc_layout.addWidget(loc_label)
+        loc_layout.addWidget(self.loc_input)
+        loc_layout.addWidget(self.browse_btn)
+        layout.addLayout(loc_layout)
+        
+        btn_layout = QHBoxLayout()
+        self.create_btn = QPushButton("Create")
+        self.create_btn.setMinimumHeight(35)
+        self.create_btn.clicked.connect(self.create_project)
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setMinimumHeight(35)
+        self.cancel_btn.clicked.connect(self.reject)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.create_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        
+        layout.addLayout(btn_layout)
+        self.setLayout(layout)
+        
+    def browse(self):
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Project Location", self.loc_input.text())
+        if dir_path:
+            self.loc_input.setText(dir_path)
+            
+    def create_project(self):
+        name = self.name_input.text().strip()
+        loc = self.loc_input.text().strip()
+        
+        if not name or not loc:
+            QMessageBox.warning(self, "Error", "Project Name and Location cannot be empty.")
+            return
+            
+        full_path = os.path.join(loc, name)
+        if os.path.exists(full_path) and os.listdir(full_path):
+            QMessageBox.warning(self, "Error", "Directory already exists and is not empty.\nPlease choose a different name or location.")
+            return
+            
+        self.full_path = full_path
+        self.accept()
+
 class StartupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -134,8 +202,9 @@ class StartupDialog(QDialog):
         self.setLayout(layout)
 
     def create_project(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Empty Directory for New Project")
-        if dir_path:
+        dialog = NewProjectDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            dir_path = dialog.full_path
             os.makedirs(os.path.join(dir_path, "sources"), exist_ok=True)
             os.makedirs(os.path.join(dir_path, "simulations"), exist_ok=True)
             os.makedirs(os.path.join(dir_path, "synthesis"), exist_ok=True)
@@ -149,9 +218,16 @@ class StartupDialog(QDialog):
     def open_project(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select Project Directory")
         if dir_path:
+            vprj_files = glob.glob(os.path.join(dir_path, "*.vprj"))
+            if not vprj_files:
+                QMessageBox.warning(self, "Invalid Project", "The selected folder is not a valid project folder (missing .vprj file).")
+                return
+            
+            # Ensure folders exist just in case
             os.makedirs(os.path.join(dir_path, "sources"), exist_ok=True)
             os.makedirs(os.path.join(dir_path, "simulations"), exist_ok=True)
             os.makedirs(os.path.join(dir_path, "synthesis"), exist_ok=True)
+            
             self.project_dir = dir_path
             self.accept()
 
