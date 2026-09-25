@@ -1,4 +1,4 @@
-# Verilog Studio
+# VeriLab
 
 A lightweight, fully-featured Verilog IDE for Windows that integrates code editing, simulation, waveform analysis, and schematic synthesis into a single, cohesive workflow. Built with Python and PyQt5, it seamlessly wraps popular open-source EDA tools.
 
@@ -21,7 +21,7 @@ A lightweight, fully-featured Verilog IDE for Windows that integrates code editi
 
 ## Required External Tools
 
-Verilog Studio acts as a front-end wrapper. To compile, simulate, and draw designs, the end-user must have the following open-source toolchains installed:
+VeriLab acts as a front-end wrapper. To compile, simulate, and draw designs, the end-user must have the following open-source toolchains installed:
 
 1. **OSS CAD Suite** (Provides `iverilog`, `yosys`, and `gtkwave`)
 2. **Node.js / npm** (Provides the package manager required for diagram rendering)
@@ -29,7 +29,7 @@ Verilog Studio acts as a front-end wrapper. To compile, simulate, and draw desig
 
 ## Detailed Setup & Path Configuration
 
-If you are distributing the compiled `Verilog Studio.exe`, the end-users do not need Python installed. However, they *must* have the toolchains installed at specific paths on their Windows system, or you will need to modify the hardcoded paths in `main.py` before building.
+If you are distributing the compiled `VeriLab.exe`, the end-users do not need Python installed. However, they *must* have the toolchains installed at specific paths on their Windows system, or you will need to modify the hardcoded paths in `main.py` before building.
 
 ### 1. OSS CAD Suite Setup
 1. Download the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases) for Windows.
@@ -50,7 +50,7 @@ If you are distributing the compiled `Verilog Studio.exe`, the end-users do not 
 3. *(If installed elsewhere, modify `graphviz_bin` inside the `WorkerThread` class in `main.py`.)*
 
 ### Modifying Paths in the Source Code
-If you need to change where Verilog Studio looks for these toolchains, open `main.py` and update the environment variable blocks located in:
+If you need to change where VeriLab looks for these toolchains, open `main.py` and update the environment variable blocks located in:
 * `WorkerThread.run()` (Handles Simulation and Synthesis processes)
 * `lint_code()` (Handles background real-time syntax checking)
 * `view_waveform()` (Handles opening GTKWave)
@@ -72,13 +72,13 @@ python main.py
 **Building the Executable:**
 We bundle the application using PyInstaller. Run the provided `build.bat` script, or run the following command in your terminal:
 ```cmd
-python -m PyInstaller -y --name "Verilog Studio" --windowed --noconsole --icon=icon.ico --add-data "icon.png;." main.py
+python -m PyInstaller -y --name "VeriLab" --windowed --noconsole --icon=icon.ico --add-data "icon.png;." main.py
 ```
-*(The compiled standalone executable will be generated inside the `dist/Verilog Studio/` folder.)*
+*(The compiled standalone executable will be generated inside the `dist/VeriLab/` folder.)*
 
 ## Usage Guide
 
-1. **Launch:** Open `Verilog Studio.exe`.
+1. **Launch:** Open `VeriLab.exe`.
 2. **Start a Project:** Click "Create New Project" and select an empty folder on your PC.
 3. **Write Code:** Click the blue `D*` icon to create a new Design Source, or the green `S*` icon to create a Simulation Source (Testbench).
 4. **Format:** Hit `Ctrl+Shift+F` to automatically beautify and indent your Verilog code.

@@ -28,7 +28,7 @@ class UpdateCheckerThread(QThread):
         import json
         try:
             url = "https://api.github.com/repos/Anish-Rooj-cpu/verilog-studio/releases/latest"
-            req = urllib.request.Request(url, headers={'User-Agent': 'VerilogStudio-App'})
+            req = urllib.request.Request(url, headers={'User-Agent': 'VeriLab-App'})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 latest_version = data.get("tag_name", "").lstrip("v")
@@ -73,7 +73,7 @@ class WorkerThread(QThread):
 class StartupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Welcome to Verilog Studio")
+        self.setWindowTitle("Welcome to VeriLab")
         self.setFixedSize(480, 220)
         self.setStyleSheet("QDialog { background-color: #21252B; } QLabel { color: #ABB2BF; } QPushButton { background-color: #3E4451; color: #ABB2BF; border: none; border-radius: 6px; padding: 10px; font-weight: bold; font-size: 11pt; } QPushButton:hover { background-color: #4B5263; }")
         self.project_dir = None
@@ -82,7 +82,7 @@ class StartupDialog(QDialog):
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(20)
         
-        label = QLabel("Welcome to Verilog Studio\nCreate or open a project to continue.")
+        label = QLabel("Welcome to VeriLab\nCreate or open a project to continue.")
         label.setAlignment(Qt.AlignCenter)
         label.setFont(QFont("Segoe UI", 13))
         layout.addWidget(label)
@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         self.project_dir = project_dir
         self.project_name = os.path.basename(project_dir)
         
-        self.setWindowTitle(f"Verilog Studio - {self.project_name}")
+        self.setWindowTitle(f"VeriLab - {self.project_name}")
         self.resize(1200, 800)
         
         # Make the native title bar dark on Windows 10/11
@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
                 reply = QMessageBox.question(
                     self, 
                     "Update Available", 
-                    f"A new version of Verilog Studio (v{latest_version}) is available!\n\n"
+                    f"A new version of VeriLab (v{latest_version}) is available!\n\n"
                     f"You are currently running v{APP_VERSION}.\n\n"
                     f"Would you like to download the update?",
                     QMessageBox.Yes | QMessageBox.No,
@@ -461,7 +461,7 @@ class MainWindow(QMainWindow):
             self.log("  clear       - Clear the console")
             self.log("  cd <dir>    - Change current directory")
             self.log("  pwd         - Print current directory")
-            self.log("  exit        - Close Verilog Studio")
+            self.log("  exit        - Close VeriLab")
             self.log("Any other command will be executed as a system shell command.")
         elif base == "cd":
             if len(parts) > 1:

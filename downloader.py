@@ -13,7 +13,7 @@ def get_settings_path():
     appdata = os.environ.get("LOCALAPPDATA", os.environ.get("APPDATA"))
     if not appdata:
         appdata = os.path.expanduser("~")
-    base_dir = os.path.join(appdata, "VerilogStudio")
+    base_dir = os.path.join(appdata, "VeriLab")
     os.makedirs(base_dir, exist_ok=True)
     return os.path.join(base_dir, "settings.json")
 
@@ -41,7 +41,7 @@ def get_tools_dir():
     appdata = os.environ.get("LOCALAPPDATA", os.environ.get("APPDATA"))
     if not appdata:
         appdata = os.path.expanduser("~")
-    return os.path.join(appdata, "VerilogStudio", "tools")
+    return os.path.join(appdata, "VeriLab", "tools")
 
 def check_dependencies():
     tools_dir = get_tools_dir()
@@ -61,7 +61,7 @@ def get_env_paths():
 def create_desktop_shortcut():
     try:
         desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-        shortcut_path = os.path.join(desktop, "Verilog Studio.lnk")
+        shortcut_path = os.path.join(desktop, "VeriLab.lnk")
         
         # Get path to current executable
         if getattr(sys, 'frozen', False):
@@ -96,7 +96,7 @@ class DownloaderThread(QThread):
             
             self.progress.emit(0, "Fetching latest OSS CAD Suite info...")
             url = "https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest"
-            req = urllib.request.Request(url, headers={'User-Agent': 'VerilogStudio'})
+            req = urllib.request.Request(url, headers={'User-Agent': 'VeriLab'})
             with urllib.request.urlopen(req) as response:
                 data = json.loads(response.read().decode())
                 
@@ -152,7 +152,7 @@ class DownloaderThread(QThread):
             self.finished.emit(False, str(e))
             
     def download_file(self, url, dest, start_prog, end_prog):
-        req = urllib.request.Request(url, headers={'User-Agent': 'VerilogStudio'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'VeriLab'})
         with urllib.request.urlopen(req) as response:
             total_size = int(response.info().get('Content-Length', 0))
             downloaded = 0
@@ -171,12 +171,12 @@ class DownloaderThread(QThread):
 class DownloadDialog(QDialog):
     def __init__(self, default_tools_dir, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Verilog Studio Setup")
+        self.setWindowTitle("VeriLab Setup")
         self.setFixedSize(500, 220)
         
         layout = QVBoxLayout()
         
-        self.label = QLabel("Welcome to Verilog Studio! Before we start, we need to download the required open-source toolchain (Yosys, Iverilog, Node.js).")
+        self.label = QLabel("Welcome to VeriLab! Before we start, we need to download the required open-source toolchain (Yosys, Iverilog, Node.js).")
         self.label.setWordWrap(True)
         layout.addWidget(self.label)
         
